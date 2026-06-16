@@ -14,11 +14,11 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
   
   // Chart structured formatting supporting 5 dimensions
   const chartData = [
-    { name: 'Technical Depth', value: result.technicalScore || 80, color: '#FFFFFF' },
-    { name: 'Communication', value: result.communicationScore || 75, color: '#A3A3A3' },
-    { name: 'Confidence/Tone', value: result.confidenceScore || 78, color: '#737373' },
-    { name: 'Problem Solving', value: (result as any).problemSolvingScore || 82, color: '#D4D4D4' },
-    { name: 'Clarity & Flow', value: (result as any).clarityScore || 80, color: '#404040' }
+    { name: 'Technical Depth', value: result.technicalScore || 80, color: '#6366f1' },
+    { name: 'Communication', value: result.communicationScore || 75, color: '#38bdf8' },
+    { name: 'Confidence/Tone', value: result.confidenceScore || 78, color: '#f59e0b' },
+    { name: 'Problem Solving', value: (result as any).problemSolvingScore || 82, color: '#10b981' },
+    { name: 'Clarity & Flow', value: (result as any).clarityScore || 80, color: '#a855f7' }
   ];
 
   // Upgraded printable PDF summary via jsPDF covering all five parameters
@@ -111,9 +111,9 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
       doc.setFontSize(9);
       
       const cleanFeedback = result.feedback
-          .replace(/#/g, '')
-          .replace(/\*/g, '')
-          .trim();
+        .replace(/#/g, '')
+        .replace(/\*/g, '')
+        .trim();
 
       const fbLines = doc.splitTextToSize(cleanFeedback, 175);
       
@@ -134,30 +134,31 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
   };
 
   return (
-    <div id="results-view-container" className="space-y-10 max-w-5xl mx-auto selection:bg-white selection:text-black">
+    <div id="results-view-container" className="space-y-12 max-w-5xl mx-auto py-6 selection:bg-white selection:text-black">
       
       {/* Upper Action banner */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-2">
         <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <span className="text-[10px] px-2.5 py-1 bg-indigo-500/15 text-indigo-400 font-mono font-bold uppercase rounded-none">GRADED SANDBOX</span>
-            <span className="text-[10px] uppercase tracking-[0.2em] text-white/40 font-semibold">• Performance Metric Report</span>
+          <div className="flex items-center space-x-2.5">
+            <span className="text-[9px] px-2.5 py-1 bg-indigo-500/15 text-indigo-400 font-mono font-bold uppercase rounded border border-indigo-500/20 tracking-wider">GRADED SANDBOX</span>
+            <span className="text-xs uppercase tracking-widest text-[#94A3B8] font-bold">• Performance Metric Report</span>
           </div>
-          <h1 className="text-3xl sm:text-5xl font-sans font-bold text-white tracking-tight -ml-0.5">Session Overview</h1>
+          <h1 className="text-3xl sm:text-5xl font-sans font-extrabold text-[#F8FAFC] tracking-tight -ml-0.5">Session Overview</h1>
         </div>
+        
         <div className="flex space-x-3 shrink-0 w-full sm:w-auto">
           <button
             id="btn-results-pdf"
             onClick={exportPDF}
-            className="flex-1 sm:flex-initial px-5 py-3 border border-white/20 text-white hover:bg-white/5 text-xs font-bold uppercase tracking-widest transition rounded-none flex items-center justify-center space-x-2"
+            className="flex-1 sm:flex-initial px-5 py-3.5 border border-white/10 hover:border-white text-[#F8FAFC] hover:bg-white/5 text-xs font-bold uppercase tracking-wider transition-all rounded-lg flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-4 h-4 text-indigo-400" />
             <span>Export Score Report</span>
           </button>
           <button
             id="btn-results-close"
             onClick={onDone}
-            className="flex-1 sm:flex-initial px-6 py-3 bg-white text-black font-bold uppercase tracking-widest text-xs hover:bg-neutral-200 transition rounded-none border border-white flex items-center justify-center space-x-2"
+            className="flex-1 sm:flex-initial px-6 py-3.5 bg-white hover:bg-slate-200 text-black font-extrabold uppercase tracking-wider text-xs transition-all rounded-lg flex items-center justify-center space-x-2 cursor-pointer active:scale-95"
           >
             <ArrowLeft className="w-4 h-4 text-black" />
             <span>Dashboard</span>
@@ -169,14 +170,14 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* Metric 1: Composite Score Dial */}
-        <div className="lg:col-span-4 border border-white/10 rounded-none bg-[#111] p-8 text-center flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="lg:col-span-4 border border-white/10 rounded-2xl bg-[#0c0c0e] p-8 text-center flex flex-col items-center justify-center relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.01] rounded-full blur-2xl pointer-events-none" />
           
-          <div className="w-10 h-10 border border-white/15 text-white/85 flex items-center justify-center mb-6">
+          <div className="w-11 h-11 border border-white/10 bg-white/[0.02] text-white flex items-center justify-center mb-6 rounded-full shadow-inner">
             <ShieldCheck className="w-5 h-5 text-indigo-400" />
           </div>
 
-          <span className="block text-[10px] uppercase tracking-[0.2em] text-[#FAFAFA]/40 font-bold mb-4">COMPOSITE ACCURACY</span>
+          <span className="block text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold mb-4">COMPOSITE ACCURACY</span>
           
           <div className="relative my-6 flex items-center justify-center">
             <svg className="w-36 h-36 transform -rotate-90">
@@ -197,33 +198,33 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
                 strokeWidth="5"
                 strokeDasharray={2 * Math.PI * 64}
                 strokeDashoffset={2 * Math.PI * 64 * (1 - result.score / 100)}
-                strokeLinecap="square"
+                strokeLinecap="round"
                 stroke="currentColor"
                 fill="transparent"
               />
             </svg>
-            <span className="absolute text-3xl font-mono font-bold text-white">{result.score}%</span>
+            <span className="absolute text-3.5xl font-mono font-extrabold text-[#F8FAFC]">{result.score}%</span>
           </div>
 
-          <p className="text-[#A3A3A3] text-[11px] leading-relaxed font-light">
+          <p className="text-[#CBD5E1] text-xs leading-relaxed font-light px-2">
             Calculated as an aggregate ratio of technical depth compliance, terminology precision, and articulation brevity.
           </p>
         </div>
 
         {/* Metric 2: Detailed 5-Track Score Indicators */}
-        <div className="lg:col-span-8 border border-white/10 rounded-none bg-[#050505] p-8 flex flex-col justify-between">
+        <div className="lg:col-span-8 border border-white/10 rounded-2xl bg-[#0c0c0e] p-8 flex flex-col justify-between shadow-xl">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em] text-[#FAFAFA]/40 mb-6 font-bold">5-TRACK PERFORMANCE BREAKDOWN</p>
+            <p className="text-[10px] uppercase tracking-widest text-[#94A3B8] mb-6 font-bold">5-TRACK PERFORMANCE BREAKDOWN</p>
             <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 mb-8">
               {chartData.map((d) => (
-                <div key={d.name} className="border border-white/10 p-4 rounded-none bg-white/[0.01]">
-                  <span className="block text-[9px] uppercase tracking-widest text-[#F5F5F5]/40 font-bold mb-2 truncate" title={d.name}>{d.name}</span>
+                <div key={d.name} className="border border-white/10 p-5 rounded-xl bg-white/[0.01] shadow-inner">
+                  <span className="block text-[9px] uppercase tracking-widest text-[#94A3B8] font-bold mb-2 truncate" title={d.name}>{d.name}</span>
                   <div className="flex items-baseline space-x-0.5 font-mono text-xl font-bold text-white">
                     <span>{d.value}</span>
-                    <span className="text-[10px] text-white/30">/100</span>
+                    <span className="text-[11px] text-[#94A3B8]">/100</span>
                   </div>
-                  <div className="w-full bg-white/5 h-1.5 rounded-none overflow-hidden mt-3">
-                    <div className="h-full rounded-none transition-all duration-1000" style={{ width: `${d.value}%`, backgroundColor: d.color }} />
+                  <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden mt-3">
+                    <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${d.value}%`, backgroundColor: d.color }} />
                   </div>
                 </div>
               ))}
@@ -238,10 +239,10 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
                 <YAxis stroke="#525252" fontSize={9} domain={[0, 100]} tickLine={false} axisLine={false} />
                 <Tooltip
                   cursor={{ fill: 'rgba(255,255,255,0.015)' }}
-                  contentStyle={{ backgroundColor: '#111', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0px' }}
+                  contentStyle={{ backgroundColor: '#0c0c0e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
                   labelStyle={{ color: '#fff', fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }}
                 />
-                <Bar dataKey="value" radius={[0, 0, 0, 0]} maxBarSize={30}>
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={28}>
                   {chartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -254,15 +255,15 @@ export default function ResultsView({ result, onDone }: ResultsViewProps) {
       </div>
 
       {/* Structured report review markdown */}
-      <div className="border border-white/10 rounded-none bg-[#111] p-6 sm:p-8 space-y-6">
-        <div className="flex items-center space-x-2 border-b border-white/10 pb-4">
-          <FileText className="w-4 h-4 text-indigo-400" />
-          <h2 className="text-xl font-bold text-white uppercase tracking-wider font-sans">
+      <div className="border border-white/10 rounded-2xl bg-[#0c0c0e] p-6 sm:p-10 space-y-6 shadow-xl">
+        <div className="flex items-center space-x-3 border-b border-white/10 pb-5">
+          <FileText className="w-5 h-5 text-indigo-400" />
+          <h2 className="text-xl font-bold text-[#F8FAFC] uppercase tracking-wider font-sans">
             AI Recruiter Feedback & 4-Week Plan
           </h2>
         </div>
         
-        <div className="markdown-body text-white/80 text-xs sm:text-sm leading-relaxed space-y-4 prose prose-invert max-w-none font-light">
+        <div className="markdown-body text-[#CBD5E1] text-xs sm:text-sm leading-relaxed space-y-4 prose prose-invert max-w-none font-light">
           <Markdown>{result.feedback}</Markdown>
         </div>
       </div>

@@ -335,23 +335,25 @@ export default function InterviewSession({
   // Pre-configuration Panel UI
   if (configActive) {
     return (
-      <div id="session-config-card" className="max-w-2xl mx-auto border border-white/10 rounded-none bg-[#111] p-8 space-y-8 relative overflow-hidden selection:bg-white selection:text-black">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/[0.02] rounded-full blur-2xl pointer-events-none" />
+      <div id="session-config-card" className="max-w-2xl mx-auto border border-white/10 rounded-2xl bg-[#0c0c0e] p-8 sm:p-12 space-y-8 relative overflow-hidden selection:bg-white selection:text-black shadow-2xl">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[#6366f1]/5 rounded-full filter blur-3xl -z-10 pointer-events-none" />
         
-        <div>
-          <span className="text-[10px] px-2.5 py-1.5 bg-indigo-500/10 text-indigo-400 font-mono font-bold uppercase rounded pr-2">PREPWYSE CORE MULTIVERSE CONFIG</span>
-          <h2 className="text-2xl sm:text-3xl font-sans font-bold text-white tracking-tight mt-3">
+        <div className="space-y-2">
+          <div className="inline-block">
+            <span className="text-[9px] px-2.5 py-1 text-indigo-400 bg-indigo-950/45 border border-indigo-500/20 font-mono font-bold uppercase rounded tracking-wider">PREPWYSE SESSION CONFIG</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-sans font-extrabold text-[#F8FAFC] tracking-tight pt-2">
             Custom Arena Setup
           </h2>
-          <p className="text-xs text-white/50 font-light mt-1 font-sans">Set difficulty tiers, design career role guidelines, and specify target recruiter benchmarks.</p>
+          <p className="text-sm text-[#CBD5E1] font-light leading-relaxed">Set difficulty tiers, design career role guidelines, and specify target recruiter benchmarks.</p>
         </div>
 
         <div className="space-y-6">
           
           {/* Target Company Matrix Selection */}
           <div>
-            <label className="block text-[10px] uppercase tracking-widest text-white/40 font-bold mb-3 flex items-center gap-1">
-              <ListFilter className="w-3.5 h-3.5" />
+            <label className="block text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold mb-3 flex items-center gap-1.5">
+              <ListFilter className="w-4 h-4 text-indigo-400" />
               Target Recruiter Culture / Company Focus
             </label>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -361,10 +363,10 @@ export default function InterviewSession({
                   id={`config-co-${co}`}
                   type="button"
                   onClick={() => setCompany(co)}
-                  className={`py-2 rounded px-1 group text-[9px] uppercase tracking-widest font-bold border transition duration-300 ${
+                  className={`py-2 px-1 rounded-md text-[10px] uppercase tracking-wider font-extrabold border transition duration-150 active:scale-95 cursor-pointer ${
                     company === co
                       ? 'bg-white text-black border-white'
-                      : 'bg-transparent text-white/50 border-white/10 hover:border-white/30 hover:text-white'
+                      : 'bg-transparent text-[#CBD5E1] border-white/10 hover:border-white/30 hover:text-white'
                   }`}
                 >
                   {co}
@@ -377,7 +379,7 @@ export default function InterviewSession({
             
             {/* Domain Field */}
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-white/40 font-bold mb-3">Practice Category</label>
+              <label className="block text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold mb-3">Practice Category</label>
               <div className="grid grid-cols-3 gap-2">
                 {(['HR', 'Technical', 'Aptitude'] as InterviewCategory[]).map((cat) => (
                   <button
@@ -385,10 +387,10 @@ export default function InterviewSession({
                     id={`config-cat-${cat}`}
                     type="button"
                     onClick={() => setCategory(cat)}
-                    className={`py-3.5 rounded text-[9.5px] uppercase tracking-widest font-bold border transition ${
+                    className={`py-3.5 rounded-lg text-[10px] uppercase tracking-widest font-extrabold border transition active:scale-95 cursor-pointer ${
                       category === cat
                         ? 'bg-white text-black border-white'
-                        : 'bg-transparent text-white/50 border-white/10 hover:border-white/30 hover:text-white'
+                        : 'bg-transparent text-[#CBD5E1] border-white/10 hover:border-white/30 hover:text-white'
                     }`}
                   >
                     {cat === 'HR' ? 'Behavioral' : cat}
@@ -399,17 +401,17 @@ export default function InterviewSession({
 
             {/* Difficulty Selector */}
             <div>
-              <label className="block text-[10px] uppercase tracking-widest text-white/40 font-bold mb-3">Complexity Level</label>
+              <label className="block text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold mb-3">Complexity Level</label>
               <div className="grid grid-cols-3 gap-2">
                 {['Beginner', 'Intermediate', 'Advanced'].map((lvl) => (
                   <button
                     key={lvl}
                     type="button"
                     onClick={() => setDifficulty(lvl)}
-                    className={`py-3.5 rounded text-[10px] uppercase tracking-wider font-bold border transition ${
+                    className={`py-3.5 rounded-lg text-[10px] uppercase tracking-wider font-extrabold border transition active:scale-95 cursor-pointer ${
                       difficulty === lvl
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-transparent text-white/40 border-white/10 hover:border-white/30 hover:text-white'
+                        ? 'bg-[#6366f1] text-white border-[#6366f1]'
+                        : 'bg-transparent text-[#CBD5E1] border-white/10 hover:border-white/30 hover:text-white'
                     }`}
                   >
                     {lvl}
@@ -422,12 +424,12 @@ export default function InterviewSession({
 
           {/* Role Dropdown Selector */}
           <div>
-            <label htmlFor="config-role-preset" className="block text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2">Target Specialty / Role Profile</label>
+            <label htmlFor="config-role-preset" className="block text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold mb-2">Target Specialty / Role Profile</label>
             <select
               id="config-role-preset"
               value={role}
               onChange={(e) => selectRolePreset(e.target.value)}
-              className="w-full bg-[#050505] border border-white/10 text-white rounded px-4 py-3.5 text-xs focus:outline-none focus:border-indigo-500 transition leading-relaxed"
+              className="w-full bg-[#050505] border border-white/10 text-[#F8FAFC] rounded-lg px-4 py-3.5 text-xs focus:outline-none focus:border-indigo-500 transition leading-relaxed"
             >
               {roleDropdownOptions.map(opt => (
                 <option key={opt} value={opt} className="bg-[#111] text-xs text-white">{opt}</option>
@@ -437,13 +439,13 @@ export default function InterviewSession({
 
           {/* Custom Topics focus instructions */}
           <div>
-            <label htmlFor="config-custom" className="block text-[10px] uppercase tracking-widest text-white/40 font-bold mb-2">Custom Focus Keywords or Details (Optional)</label>
+            <label htmlFor="config-custom" className="block text-[10px] uppercase tracking-widest text-[#94A3B8] font-bold mb-2">Custom Focus Keywords or Details (Optional)</label>
             <textarea
               id="config-custom"
               value={customTopic}
               onChange={(e) => setCustomTopic(e.target.value)}
               rows={3}
-              className="w-full bg-[#050505] border border-white/10 text-white rounded p-4 text-xs focus:outline-none focus:border-indigo-500 transition resize-none font-light leading-relaxed placeholder-white/20"
+              className="w-full bg-[#050505] border border-white/10 text-[#F8FAFC] rounded-lg p-4 text-xs focus:outline-none focus:border-indigo-500 transition resize-none font-light leading-relaxed placeholder-white/20"
               placeholder="e.g., cloud cost overhead logs, AWS Elastic Load Balancers failure models, Redis cache metrics..."
             />
           </div>
@@ -455,7 +457,7 @@ export default function InterviewSession({
             id="btn-config-cancel"
             type="button"
             onClick={onCancel}
-            className="flex-1 py-3.5 border border-white/25 text-xs font-bold uppercase tracking-widest hover:border-white transition rounded-none"
+            className="flex-1 py-3.5 border border-white/15 text-xs font-bold uppercase tracking-wider hover:border-white hover:bg-white/5 transition rounded-lg cursor-pointer active:scale-95"
           >
             Cancel
           </button>
@@ -464,9 +466,9 @@ export default function InterviewSession({
             type="button"
             onClick={startSession}
             disabled={loading}
-            className="flex-1 py-3.5 bg-white text-black font-bold uppercase tracking-widest text-xs hover:bg-neutral-200 transition flex items-center justify-center space-x-2 rounded-none border border-white"
+            className="flex-1 py-3.5 bg-[#6366f1] hover:bg-indigo-550 text-white font-bold uppercase tracking-wider text-xs transition flex items-center justify-center space-x-2 rounded-lg cursor-pointer active:scale-95"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin text-black" /> : <span>Launch Room</span>}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <span>Launch Room</span>}
           </button>
         </div>
       </div>
@@ -494,7 +496,7 @@ export default function InterviewSession({
     const answerVal = userAnswers[currentQuestion.id] || '';
 
     return (
-      <div id="active-session-board" className="max-w-3xl mx-auto border border-white/10 bg-[#0f0f11] p-6 sm:p-8 space-y-8 shadow-2xl relative rounded-none selection:bg-white selection:text-black">
+      <div id="active-session-board" className="max-w-3xl mx-auto border border-white/10 bg-[#0c0c0e] p-6 sm:p-10 space-y-8 shadow-2xl relative rounded-2xl selection:bg-white selection:text-black">
         
         {/* State and Mode metadata headers */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10">
@@ -503,8 +505,8 @@ export default function InterviewSession({
               <span className="text-[9px] font-mono px-2 py-0.5 bg-indigo-500/10 text-indigo-400 font-bold uppercase rounded">{company} Presets Mode</span>
               <span className="text-[9px] font-mono px-2 py-0.5 bg-orange-400/10 text-orange-400 font-bold uppercase rounded">{difficulty} Tier</span>
             </div>
-            <h2 className="text-2xl font-sans text-white font-semibold">
-              Role: <span className="text-white font-bold">{role}</span>
+            <h2 className="text-2xl font-sans text-[#F8FAFC] font-semibold">
+              Role: <span className="text-[#F8FAFC] font-bold">{role}</span>
             </h2>
           </div>
 

@@ -143,7 +143,7 @@ Please perform an in-depth, rigorous analysis of the answers. Provide:
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
-        systemInstruction: "You are an elite talent coach, professional HR Director, and Lead Engineering Executive evaluating an application candidate. Be fair, highly analytical, and provide clear educational pathways to success.",
+        systemInstruction: "You are an elite talent coach, professional HR Director, and Lead Engineering Executive evaluating an application candidate. Be fair, highly analytical, and provide clear educational pathways to success. CRITICAL SCORING COMPLIANCE REQUIREMENT: You must evaluate strictly and factually. If the user submits incorrect, superficial, single-sentence, blank, or nonsensical answers (such as simple repeated test letters like 'asdf'), you MUST award extremely low score metrics (e.g. 5 to 40) for those sections and penalize the overall composite score heavily. Only award scores above 80% for high-quality, conceptually accurate, and detailed responses that directly solve or correctly address the questions with strong structural logic.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -442,29 +442,72 @@ function getSimulatedQuestions(category: string, role: string, difficulty: strin
 }
 
 function getSimulatedEvaluation(category: string, role: string, answers: any[]) {
-  let scoreBase = 74;
-  const nonemptyAnswersCount = answers.filter(a => a.answerText && a.answerText.trim().length > 10).length;
-  scoreBase += nonemptyAnswersCount * 4;
-  if (scoreBase > 95) scoreBase = 95;
+  // strict grading heuristics for the simulated/fallback mode
+  let scoreBase = 10; // Start with a very low baseline
+  let totalLength = 0;
+  let validAnswersCount = 0;
 
-  const communication = Math.round(scoreBase + (Math.random() * 8 - 4));
-  const technical = Math.round(scoreBase + (Math.random() * 10 - 5));
-  const confidence = Math.round(scoreBase + (Math.random() * 6 - 3));
-  const problemSolving = Math.round(scoreBase + (Math.random() * 8 - 4));
-  const clarity = Math.round(scoreBase + (Math.random() * 6 - 2));
+  answers.forEach(a => {
+    const text = (a.answerText || "").trim();
+    if (text.length > 0) {
+      totalLength += text.length;
+      
+      // Filter out low quality non-answers like "idk", "aaaa", "asdf"
+      const isRepeated = /(.)\1{3,}/.test(text); // e.g. aaaa
+      const isGibberish = text.length < 10 && (
+        /asdf/i.test(text) || 
+        /test/i.test(text) || 
+        /none/i.test(text) || 
+        /idk/i.test(text) || 
+        /don't know/i.test(text) ||
+        /skip/i.test(text) ||
+        /hello/i.test(text)
+      );
+
+      if (!isRepeated && !isGibberish && text.length >= 10) {
+        validAnswersCount++;
+        // Grant score based on detailed response depth
+        if (text.length > 150) {
+          scoreBase += 16; // excellent elaborate STAR structure
+        } else if (text.length > 60) {
+          scoreBase += 12; // decent standard structure
+        } else {
+          scoreBase += 6; // brief answer
+        }
+      }
+    }
+  });
+
+  // Cap scoreBase based on submission compliance
+  if (answers.length === 0) {
+    scoreBase = 0;
+  } else if (validAnswersCount === 0) {
+    scoreBase = Math.min(15, scoreBase); // extremely low for empty/nonsense submissions
+  }
+
+  // Calculate scores with subtle randomness but strictly bounded by quality
+  const rawScore = Math.min(96, Math.max(5, scoreBase));
+  const communication = Math.round(rawScore + (Math.random() * 4 - 2));
+  const technical = Math.round(rawScore + (Math.random() * 6 - 3));
+  const confidence = Math.round(rawScore + (Math.random() * 4 - 2));
+  const problemSolving = Math.round(rawScore + (Math.random() * 6 - 2));
+  const clarity = Math.round(rawScore + (Math.random() * 4 - 2));
   
   const finalScore = Math.round((communication + technical + confidence + problemSolving + clarity) / 5);
 
-  const markdownFeedback = `### Core Strengths
+  let feedbackIntro = "";
+  if (finalScore < 45) {
+    feedbackIntro = `### Performance Warning: Superficial or Empty Submission\n\nYour session received a lower score of **${finalScore}%** because the submitted answers were either exceptionally brief, skipped, or contained inadequate technical substance. To qualify for senior or mid-level recruitment standards, answers must display structured analytical thinking, contextual key terms, and detailed STAR examples.`;
+  } else {
+    feedbackIntro = `### Core Strengths\n\n- **Consistent Response Structures:** Your answers show deliberate planning and effort.\n- **Refined Articulation:** You correctly incorporated relevant context as a ${role}, utilizing industry-appropriate definitions.`;
+  }
 
-- **Clear Articulation:** Your responses demonstrate a solid structure, presenting your perspective clearly and directly.
-- **Career Intentionality:** You contextualize your answers based on real-world requirements as a ${role}, displaying genuine domain engagement.
-- **Comprehensive Scenarios:** You structured behavioral answers beautifully, outlining initial challenges and the active pathways you took to solve them.
+  const markdownFeedback = `${feedbackIntro}
 
 ### Areas for Improvement
 
-- **Vagueness under Pressure:** Some answers lacked specific metrics or named frameworks. For example, in technical fields, mentioning system statistics (e.g., latency percentages or exact database schemas) improves professional authority.
-- **Formatting Behavioral Contexts:** Your behavioral HR responses could benefit from a tighter adherence to the **STAR method** (Situation, Task, Action, Result) to increase readability and punchiness.
+- **Framing with Real metrics:** Ensure every answer highlights measurable quantitative outputs (e.g. 'reduced processing overhead by 25%'). 
+- **Structure and Sequence:** Use structural frameworks (like the **STAR framework** for behavioral tracks) to avoid jumping straight to solutions without specifying the constraints and tasks first.
 
 ### 4-Week Personalized Improvement Plan
 

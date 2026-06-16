@@ -41,8 +41,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
         try {
           const q = query(
             collection(db, path),
-            where('userId', '==', userId),
-            orderBy('createdAt', 'asc')
+            where('userId', '==', userId)
           );
           const snap = await getDocs(q);
           const loaded: Message[] = [];
@@ -56,10 +55,13 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
               createdAt: data.createdAt
             });
           });
+          // Sort client-side by createdAt asc to avoid index requirements
+          loaded.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           setMessages(loaded);
+          // Sync to local storage as high-robustness backup cache
+          localStorage.setItem(`ask_ms_chats_${userId}`, JSON.stringify(loaded));
         } catch (err) {
-          console.error("Failed to load Ask MS chats from Firestore:", err);
-          // Fallback to local storage if query indexing is pending or errors
+          console.error("Failed to load Ask MS chats from Firestore, rolling back to client cache:", err);
           loadFromLocalStorage();
         } finally {
           setLoadingHistory(false);
@@ -157,10 +159,8 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
       const savedModelMsg = await saveMessage(modelMsg);
       setMessages(prev => [...prev, savedModelMsg]);
       
-      // Update local storage representation if we are using guest mode
-      if (!isFirebaseActive || !db) {
-        localStorage.setItem(`ask_ms_chats_${userId}`, JSON.stringify([...activeHistory, savedModelMsg]));
-      }
+      // Update local storage representation for robust persistence fallback
+      localStorage.setItem(`ask_ms_chats_${userId}`, JSON.stringify([...activeHistory, savedModelMsg]));
 
     } catch (err) {
       console.error("Failed to fetch response from Ask MS endpoint:", err);

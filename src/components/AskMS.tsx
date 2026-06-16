@@ -204,10 +204,10 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
   };
 
   return (
-    <div id="ask-ms-root" className="max-w-4xl mx-auto space-y-8 font-sans text-left">
+    <div id="ask-ms-root" className="max-w-4xl mx-auto space-y-8 font-sans text-left selection:bg-white selection:text-black">
       
       {/* Decorative Editorial Header */}
-      <div className="border border-neutral-200 dark:border-white/5 bg-[#09090b] dark:bg-[#0c0c0e] p-8 relative overflow-hidden">
+      <div className="border border-white/10 bg-[#0c0c0e] p-8 relative overflow-hidden rounded-2xl shadow-xl">
         <div className="absolute top-0 right-0 p-4 opacity-10">
           <BrainCircuit className="w-24 h-24 text-white" />
         </div>
@@ -216,10 +216,10 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
             <span className="text-[10px] uppercase tracking-[0.25em] text-[#6366f1] font-mono font-bold block">PrepWise Conversational Advisor</span>
             <span className="text-[9px] bg-[#6366f1]/20 text-[#6366f1] border border-[#6366f1]/30 font-mono font-bold px-1.5 py-0.5 rounded-sm uppercase tracking-wider">Ask MS</span>
           </div>
-          <h2 className="text-2xl sm:text-3.5xl font-sans font-semibold tracking-tight text-neutral-900 dark:text-white">
+          <h2 className="text-2xl sm:text-3.5xl font-sans font-extrabold tracking-tight text-[#F8FAFC]">
             Ask MS &mdash; Career & Technical Mentor
           </h2>
-          <p className="text-neutral-500 dark:text-white/40 font-light text-xs max-w-xl leading-relaxed">
+          <p className="text-[#CBD5E1] font-light text-xs max-w-xl leading-relaxed">
             Get instant strategic alignment audits. Contrast system design models, calibrate your technical language precision, parse behavior stories, or resolve mock strategy dilemmas in real-time.
           </p>
         </div>
@@ -230,12 +230,12 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
         
         {/* Suggestion Sidebar */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="border border-neutral-200 dark:border-white/10 p-4 space-y-4 rounded-sm">
-            <div className="flex items-center space-x-2 pb-2 border-b border-neutral-100 dark:border-white/5">
+          <div className="border border-white/10 p-5 space-y-4 rounded-2xl bg-[#0c0c0e] shadow-md">
+            <div className="flex items-center space-x-2 pb-2 border-b border-white/10">
               <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
-              <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-800 dark:text-white">Quick Inquiries</span>
+              <span className="text-[10px] uppercase tracking-wider font-bold text-[#F8FAFC]">Quick Inquiries</span>
             </div>
-            <p className="text-[10px] text-neutral-500 dark:text-white/40 leading-relaxed font-light">
+            <p className="text-[10px] text-[#94A3B8] leading-relaxed font-light">
               Submit pre-validated analytical requests to train your response flow:
             </p>
             <div className="space-y-2 pt-2">
@@ -245,10 +245,10 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                   id={`chip-suggestion-${i}`}
                   onClick={() => handleSendMessage(chip.text)}
                   disabled={loading}
-                  className="w-full text-left p-2.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-white/[0.02] dark:hover:bg-white/5 border border-neutral-200 dark:border-white/5 hover:border-neutral-300 dark:hover:border-white/10 transition-all rounded-sm text-[11px] leading-snug text-neutral-700 dark:text-white/80 shrink-0 select-none block"
+                  className="w-full text-left p-3.5 bg-white/[0.01] hover:bg-white/5 border border-white/10 hover:border-white/20 transition-all rounded-xl text-[11px] leading-snug text-[#CBD5E1] shrink-0 select-none block cursor-pointer"
                 >
-                  <span className="font-semibold block text-neutral-900 dark:text-white mb-0.5 truncate">{chip.label}</span>
-                  <span className="text-neutral-400 dark:text-white/40 text-[9.5px] line-clamp-2 leading-relaxed">{chip.text}</span>
+                  <span className="font-bold block text-white mb-1 truncate">{chip.label}</span>
+                  <span className="text-[#94A3B8] text-[9.5px] line-clamp-2 leading-relaxed">{chip.text}</span>
                 </button>
               ))}
             </div>
@@ -258,7 +258,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
             id="btn-clear-conversation"
             onClick={clearConversation}
             disabled={messages.length === 0 || loading}
-            className="w-full py-2.5 px-4 bg-transparent border border-red-500/10 hover:border-red-500/30 text-red-500 hover:bg-red-500/5 transition text-[10px] font-bold uppercase tracking-wider flex items-center justify-center space-x-2"
+            className="w-full py-3 px-4 bg-transparent border border-red-500/10 hover:border-red-500/30 text-red-400 hover:bg-red-500/5 transition text-[10px] font-bold uppercase tracking-wider flex items-center justify-center space-x-2 rounded-xl cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Purge Chat Board</span>
@@ -266,16 +266,16 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
         </div>
 
         {/* Chat Feed Area */}
-        <div className="lg:col-span-3 border border-neutral-200 dark:border-white/5 bg-neutral-50/50 dark:bg-[#070708] flex flex-col h-[520px] rounded-sm relative overflow-hidden">
+        <div className="lg:col-span-3 border border-white/10 bg-[#0c0c0e] flex flex-col h-[560px] rounded-2xl relative overflow-hidden shadow-2xl">
           
           {/* Feed Header */}
-          <div className="px-6 py-4 border-b border-neutral-200 dark:border-white/10 flex items-center justify-between bg-white dark:bg-[#09090b]">
+          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-[#121216]">
             <div className="flex items-center space-x-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1] animate-pulse"></span>
-              <span className="text-[10px] uppercase tracking-widest font-bold text-[#71717a] dark:text-white/50">Ask MS Intelligence Loop</span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-[#94A3B8]">Ask MS Intelligence Loop</span>
             </div>
             {messages.length > 0 && (
-              <span className="text-[9px] font-mono text-neutral-400 dark:text-white/30">{messages.length} messages</span>
+              <span className="text-[9px] font-mono text-[#94A3B8]/60">{messages.length} messages</span>
             )}
           </div>
 
@@ -284,16 +284,16 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
             {loadingHistory ? (
               <div className="h-full flex flex-col items-center justify-center space-y-3">
                 <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#71717a] dark:text-white/30">Syncing chat ledger...</span>
+                <span className="text-[10px] font-mono uppercase tracking-widest text-[#94A3B8]">Syncing chat ledger...</span>
               </div>
             ) : messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-                <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center rounded-none text-indigo-500">
+                <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center rounded-xl text-indigo-500">
                   <BrainCircuit className="w-5 h-5" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-sm font-semibold tracking-tight text-neutral-900 dark:text-white uppercase">Initialize Advisory Board</h4>
-                  <p className="text-xs text-neutral-500 dark:text-white/40 max-w-sm font-light">
+                  <h4 className="text-sm font-semibold tracking-tight text-white uppercase">Initialize Advisory Board</h4>
+                  <p className="text-xs text-[#94A3B8] max-w-sm font-light">
                     Ask any query regarding architecture scale trade-offs, STAR formatting metrics, or career trajectory positioning. Select a chip to start.
                   </p>
                 </div>
@@ -310,19 +310,19 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                       className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
                       {msg.role !== 'user' && (
-                        <div className="w-8 h-8 rounded-none border border-indigo-500/30 bg-[#6366f1]/10 flex items-center justify-center text-[10px] font-bold text-[#6366f1] shrink-0 font-mono">
+                        <div className="w-8 h-8 rounded-lg border border-indigo-500/30 bg-[#6366f1]/10 flex items-center justify-center text-[10.5px] font-bold text-[#6366f1] shrink-0 font-mono shadow-inner">
                           MS
                         </div>
                       )}
 
-                      <div className={`max-w-[85%] rounded-sm p-4 ${
+                      <div className={`max-w-[85%] rounded-2xl p-5 shadow-lg ${
                         msg.role === 'user'
                           ? 'bg-[#6366f1] text-white border border-indigo-600'
-                          : 'bg-neutral-100 dark:bg-white/[0.02] border border-neutral-200 dark:border-white/5 text-neutral-850 dark:text-white/90 shadow-sm'
+                          : 'bg-white/[0.03] border border-white/10 text-[#F8FAFC]'
                       }`}>
                         
                         {/* Author info header */}
-                        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-widest leading-none mb-2 border-b pb-1 opacity-50 border-neutral-300 dark:border-white/5">
+                        <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-widest leading-none mb-2.5 border-b pb-1.5 opacity-60 border-white/5">
                           <span>{msg.role === 'user' ? 'Applicant Profile' : 'Mentor (Ask MS)'}</span>
                           <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
@@ -331,7 +331,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                         {msg.role === 'user' ? (
                           <p className="text-xs font-light leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                         ) : (
-                          <div className="markdown-body text-xs font-light leading-relaxed space-y-3 prose prose-invert prose-xs select-text">
+                          <div className="markdown-body text-xs font-light leading-relaxed space-y-3 prose prose-invert max-w-none text-[#CBD5E1] select-text">
                             <Markdown>{msg.text}</Markdown>
                           </div>
                         )}
@@ -339,7 +339,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                       </div>
 
                       {msg.role === 'user' && (
-                        <div className="w-8 h-8 rounded-none border border-neutral-200 dark:border-white/15 bg-neutral-100 dark:bg-white/[0.04] flex items-center justify-center text-[10px] font-bold text-neutral-600 dark:text-neutral-300 shrink-0 font-mono">
+                        <div className="w-8 h-8 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center text-[10px] font-bold text-[#94A3B8] shrink-0 font-mono shadow-inner">
                           PC
                         </div>
                       )}
@@ -349,12 +349,12 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                 
                 {loading && (
                   <div className="flex gap-4 justify-start">
-                    <div className="w-8 h-8 rounded-none border border-indigo-500/30 bg-[#6366f1]/10 flex items-center justify-center text-[10px] font-bold text-[#6366f1] shrink-0 font-mono">
+                    <div className="w-8 h-8 rounded-lg border border-indigo-500/30 bg-[#6366f1]/10 flex items-center justify-center text-[10.5px] font-bold text-[#6366f1] shrink-0 font-mono">
                       MS
                     </div>
-                    <div className="bg-neutral-100 dark:bg-white/[0.02] border border-neutral-200 dark:border-white/5 rounded-sm p-4 max-w-[85%] flex items-center space-x-3">
+                    <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 max-w-[85%] flex items-center space-x-3 shadow-md">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                      <span className="text-[10px] uppercase font-mono tracking-widest text-[#71717a] dark:text-white/40">Synthesizing narrative path...</span>
+                      <span className="text-[10px] uppercase font-mono tracking-widest text-[#94A3B8]">Synthesizing narrative path...</span>
                     </div>
                   </div>
                 )}
@@ -365,7 +365,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
           </div>
 
           {/* Feed Input Area */}
-          <div className="p-4 border-t border-neutral-200 dark:border-white/10 bg-white dark:bg-[#09090b]">
+          <div className="p-4 border-t border-white/10 bg-[#0e0e11]">
             <form
               id="ask-ms-form"
               onSubmit={(e) => {
@@ -380,7 +380,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 disabled={loading || loadingHistory}
-                className="flex-1 bg-neutral-100 focus:bg-white dark:bg-[#050505] dark:focus:bg-black border border-neutral-200 dark:border-white/10 focus:border-neutral-400 dark:focus:border-white pl-4 pr-4 py-3 text-xs focus:outline-none transition-all text-neutral-950 dark:text-white placeholder-neutral-400 dark:placeholder-white/20 rounded-none h-11"
+                className="flex-1 bg-black border border-white/10 focus:border-white pl-4 pr-4 py-3 text-xs focus:outline-none transition-all text-[#F8FAFC] placeholder-white/20 rounded-lg h-11"
                 placeholder={loading ? "Waiting for response..." : "Ask MS about STAR format, system design, Amazon, Stripe guidelines..."}
                 required
               />
@@ -388,7 +388,7 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
                 id="btn-ask-ms-submit"
                 type="submit"
                 disabled={loading || loadingHistory || !inputText.trim()}
-                className="px-4 py-3 bg-[#6366f1] hover:bg-indigo-650 disabled:bg-[#6366f1]/40 text-white font-bold transition flex items-center justify-center space-x-1.5 h-11 shrink-0 rounded-none cursor-pointer"
+                className="px-4 py-3 bg-[#6366f1] hover:bg-indigo-555 disabled:bg-[#6366f1]/40 text-white font-bold transition flex items-center justify-center space-x-1.5 h-11 shrink-0 rounded-lg cursor-pointer active:scale-95"
                 aria-label="Send message"
               >
                 <Send className="w-3.5 h-3.5" />

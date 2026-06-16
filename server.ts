@@ -32,6 +32,15 @@ function getGeminiClient(): GoogleGenAI | null {
   return aiInstance;
 }
 
+function parseCleanJSON(raw: string): any {
+  let text = raw.trim();
+  // Remove markdown codeblock tags if they exist
+  text = text.replace(/^```json\s*/i, "");
+  text = text.replace(/^```\s*/, "");
+  text = text.replace(/```$/, "");
+  return JSON.parse(text.trim());
+}
+
 // ----------------------------------------------------
 // API ENDPOINTS DEFINITIONS
 // ----------------------------------------------------
@@ -88,7 +97,7 @@ Constraints:
       throw new Error("Empty response from AI engine");
     }
 
-    const questionsList = JSON.parse(bodyText.trim());
+    const questionsList = parseCleanJSON(bodyText);
     res.json(questionsList);
   } catch (err: any) {
     console.error("Gemini Question Generation failed:", err);
@@ -151,7 +160,7 @@ Please perform an in-depth, rigorous analysis of the answers. Provide:
       throw new Error("No evaluation response text returned from model");
     }
 
-    const evaluationResult = JSON.parse(bodyText.trim());
+    const evaluationResult = parseCleanJSON(bodyText);
     res.json(evaluationResult);
   } catch (err: any) {
     console.error("Gemini Interview Evaluation failed:", err);
@@ -228,7 +237,7 @@ app.post("/api/analyze-resume", async (req, res) => {
       throw new Error("No evaluation returned for the resume upload");
     }
 
-    const analysisResult = JSON.parse(bodyText.trim());
+    const analysisResult = parseCleanJSON(bodyText);
     res.json(analysisResult);
   } catch (err: any) {
     console.error("Gemini Resume Audit failed:", err);

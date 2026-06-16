@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, TrendingUp, History, BrainCircuit, Star, Award, AwardIcon, Compass, Sparkles, AlertCircle } from 'lucide-react';
+import { Play, TrendingUp, History, BrainCircuit, Star, Award, AwardIcon, Compass, Sparkles, AlertCircle, Download } from 'lucide-react';
 import { InterviewCategory } from '../types';
 
 interface DashboardProps {
@@ -9,6 +9,8 @@ interface DashboardProps {
   lastScore: number | null;
   onNavigate: (tab: string) => void;
   onStartInterview: (category: InterviewCategory) => void;
+  onInstall: () => void;
+  isInstallable: boolean;
 }
 
 export default function Dashboard({
@@ -18,10 +20,34 @@ export default function Dashboard({
   lastScore,
   onNavigate,
   onStartInterview,
+  onInstall,
+  isInstallable,
 }: DashboardProps) {
   return (
     <div id="dashboard-container" className="space-y-10 max-w-7xl mx-auto selection:bg-white selection:text-black">
       
+      {/* PWA App Download Prompt */}
+      {isInstallable && (
+        <div id="pwa-install-banner" className="border border-white p-6 bg-white text-black flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in relative z-25">
+          <div className="space-y-1">
+            <h4 className="font-sans font-bold uppercase tracking-widest text-[11px] flex items-center gap-2 text-black">
+              <Download className="w-4 h-4 shrink-0 text-black fill-current animate-pulse" />
+              Download Offline App
+            </h4>
+            <p className="text-xs text-black/70 font-normal max-w-2xl">
+              Install PrepWise AI directly to your mobile homescreen or desktop workstation for standard standalone launching, local cache optimizations, and streamlined prep sessions.
+            </p>
+          </div>
+          <button
+            onClick={onInstall}
+            className="px-6 py-3 bg-black text-white text-[10px] font-bold uppercase tracking-widest hover:bg-neutral-800 transition duration-300 flex items-center space-x-2 shrink-0 border border-black"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Install Standalone</span>
+          </button>
+        </div>
+      )}
+
       {/* Header section with welcome banner */}
       <div id="dashboard-welcome" className="relative border border-white/10 bg-white/[0.01] p-8 overflow-hidden rounded-none">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

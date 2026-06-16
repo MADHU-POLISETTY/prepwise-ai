@@ -1,12 +1,14 @@
 import React from 'react';
-import { Target, Shield, BookOpen, BrainCircuit, BarChart3, ChevronRight, FileText } from 'lucide-react';
+import { Target, Shield, BookOpen, BrainCircuit, BarChart3, ChevronRight, FileText, Download } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onInstall: () => void;
+  isInstallable: boolean;
 }
 
-export default function LandingPage({ onGetStarted }: LandingPageProps) {
+export default function LandingPage({ onGetStarted, onInstall, isInstallable }: LandingPageProps) {
   return (
     <div id="landing-page-container" className="min-h-screen bg-[#050505] text-[#F5F5F5] flex flex-col selection:bg-white selection:text-black overflow-hidden relative">
       
@@ -20,13 +22,23 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             PrepWise <span className="not-italic font-sans font-bold text-xs bg-white text-black px-2.5 py-0.5 ml-1 select-none">AI</span>
           </h1>
         </div>
-        <button
-          id="btn-header-login"
-          onClick={onGetStarted}
-          className="px-6 py-2 border border-white/20 text-xs font-bold uppercase tracking-widest hover:bg-white hover:text-black transition duration-300"
-        >
-          Sign In
-        </button>
+        <div className="flex items-center space-x-4">
+          <button
+            id="btn-header-install"
+            onClick={onInstall}
+            className="px-4 py-2 border border-white/20 text-xs font-bold uppercase tracking-widest hover:bg-white/5 text-white/80 transition duration-300 flex items-center space-x-2"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Install App</span>
+          </button>
+          <button
+            id="btn-header-login"
+            onClick={onGetStarted}
+            className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-neutral-200 transition duration-300 border border-white"
+          >
+            Sign In
+          </button>
+        </div>
       </header>
 
       {/* Hero Section */}
@@ -66,7 +78,7 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.45 }}
-          className="flex flex-col sm:flex-row gap-4 w-full justify-center px-4"
+          className="flex flex-col sm:flex-row gap-4 w-full justify-center px-4 max-w-2xl"
         >
           <button
             id="btn-hero-primary"
@@ -76,9 +88,19 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
             <span>Start Practice Free</span>
             <ChevronRight className="w-4 h-4 flex-shrink-0" />
           </button>
+          
+          <button
+            id="btn-hero-install-secondary"
+            onClick={onInstall}
+            className="px-8 py-4 border border-white/20 text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition flex items-center justify-center space-x-2"
+          >
+            <Download className="w-4 h-4 shrink-0 text-white/80" />
+            <span>Download Native App</span>
+          </button>
+
           <a
             href="#features-section"
-            className="px-8 py-4 border border-white/20 text-white/80 text-xs font-bold uppercase tracking-[0.2em] hover:bg-white/5 transition flex items-center justify-center"
+            className="px-8 py-4 border border-white/10 text-white/80 text-xs font-bold uppercase tracking-[0.2em] hover:text-white hover:border-white/30 transition flex items-center justify-center"
           >
             Explore Features
           </a>

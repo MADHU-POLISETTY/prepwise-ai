@@ -15,9 +15,10 @@ import {
   AlertCircle,
   Menu,
   X,
+  Download,
 } from 'lucide-react';
 import { onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, addDoc, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Subcomponents
 import LandingPage from './components/LandingPage';
@@ -41,8 +42,8 @@ export default function App() {
   const [user, setUser] = useState<{ email: string; uid: string } | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [emailInput, setEmailInput] = useState('p.jmanoj378@gmail.com'); // Defaulted to user email from metadata
-  const [passwordInput, setPasswordInput] = useState('password123');
+  const [emailInput, setEmailInput] = useState(''); // Empty by default for seamless register/login
+  const [passwordInput, setPasswordInput] = useState(''); // Empty by default
   const [authError, setAuthError] = useState('');
   const [authActionLoading, setAuthActionLoading] = useState(false);
 
@@ -51,15 +52,70 @@ export default function App() {
   const [activeResult, setActiveResult] = useState<InterviewResult | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<any | null>(null);
 
-  // Monitor Auth Changes
+  // PWA Installation states
+  const [deferredPrompt, setDeferredPrompt] = useState<any | null>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  // Listen to PWA installation prompts
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    // If already running in standalone PWA window, set installable false
+    if (window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone) {
+      setIsInstallable(false);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (!deferredPrompt) {
+      // Direct offline notification instruction for non-supported browsers (like Safari)
+      alert("To install this app on your device, use your browser's 'Add to Home Screen' action menu or click the install icon in the URL bar.");
+      return;
+    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`[PrepWise PWA] Install choice: ${outcome}`);
+    setDeferredPrompt(null);
+    setIsInstallable(false);
+  };
+
+  // Monitor Auth Changes & Automatically Synced User Profiles
   useEffect(() => {
     let unsubscribe = () => {};
 
     if (isFirebaseActive && auth) {
-      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser && firebaseUser.email) {
           setUser({ email: firebaseUser.email, uid: firebaseUser.uid });
           setActiveTab('dashboard');
+
+          // Automatic user collection sync (Pillar 6 support)
+          if (db) {
+            try {
+              const userRef = doc(db, 'users', firebaseUser.uid);
+              const userSnap = await getDoc(userRef);
+              if (!userSnap.exists()) {
+                await setDoc(userRef, {
+                  uid: firebaseUser.uid,
+                  email: firebaseUser.email,
+                  createdAt: new Date().toISOString()
+                });
+                console.log("[PrepWise AI Firebase] Sync successful: Registered new user entry in Firestore.");
+              }
+            } catch (err) {
+              console.error("[PrepWise AI Firebase] Profile sync omitted or deferred:", err);
+            }
+          }
         } else {
           setUser(null);
           setActiveTab('landing');
@@ -331,7 +387,13 @@ export default function App() {
 
   // 1. LANDING PAGE
   if (activeTab === 'landing' && !user) {
-    return <LandingPage onGetStarted={() => { setAuthMode('login'); setActiveTab('auth'); }} />;
+    return (
+      <LandingPage
+        onGetStarted={() => { setAuthMode('login'); setActiveTab('auth'); }}
+        onInstall={handleInstallApp}
+        isInstallable={isInstallable}
+      />
+    );
   }
 
   // 2. AUTHENTICATION PAGES (LOGIN / REGISTRATION OVERLAYS)
@@ -340,18 +402,54 @@ export default function App() {
       <div id="auth-fullscreen-container" className="min-h-screen bg-[#050505] text-[#F5F5F5] flex flex-col items-center justify-center p-6 selection:bg-white selection:text-black relative">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
 
-        <div className="w-full max-w-md border border-white/10 rounded-none bg-[#111] p-8 space-y-8 relative z-10">
+        <div className="w-full max-w-md border border-white/10 rounded-none bg-[#111] p-8 space-y-6 relative z-10">
           
-          <div className="text-center space-y-3">
+          <div className="text-center space-y-1.5">
             <h1 className="text-2xl font-sans font-bold tracking-tight text-white">
               PrepWise <span className="font-sans font-bold text-xs bg-white text-black px-2.5 py-0.5 ml-1">AI</span>
             </h1>
-            
-            <h2 className="text-lg font-sans font-semibold text-white/80 pt-2">
-              {authMode === 'login' ? 'Sign in to your Coach' : 'Create Practice Account'}
+          </div>
+
+          {/* Tacoma-esque High-Contrast Segmented Switcher */}
+          <div id="auth-role-switcher" className="grid grid-cols-2 border border-white/10 p-1 bg-black">
+            <button
+              id="tab-auth-login"
+              type="button"
+              onClick={() => {
+                setAuthError('');
+                setAuthMode('login');
+              }}
+              className={`py-2 text-[10px] uppercase tracking-widest font-bold transition-all duration-350 ${
+                authMode === 'login'
+                  ? 'bg-white text-black'
+                  : 'bg-transparent text-white/50 hover:text-white'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              id="tab-auth-register"
+              type="button"
+              onClick={() => {
+                setAuthError('');
+                setAuthMode('register');
+              }}
+              className={`py-2 text-[10px] uppercase tracking-widest font-bold transition-all duration-350 ${
+                authMode === 'register'
+                  ? 'bg-white text-black'
+                  : 'bg-transparent text-white/50 hover:text-white'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+          
+          <div className="text-center space-y-1 pt-1">
+            <h2 className="text-sm font-sans font-bold text-white/80">
+              {authMode === 'login' ? 'Sign In to Coach' : 'Create Practice Account'}
             </h2>
-            <p className="text-white/50 text-[11px] font-sans">
-              {authMode === 'login' ? "Access your saved interviews and resume analytical index." : "Register standard details to initialize personalized AI question generators."}
+            <p className="text-white/50 text-[10px] font-sans">
+              {authMode === 'login' ? "Access saved practice metrics and resume analytics profiles." : "Initialize a brand-new practice account using Firebase security rules."}
             </p>
           </div>
 
@@ -376,7 +474,21 @@ export default function App() {
 
             {/* Password Form */}
             <div>
-              <label htmlFor="auth-password-id" className="block text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-2">Secure Password</label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="auth-password-id" className="block text-[10px] uppercase tracking-widest text-white/40 font-semibold">Secure Password</label>
+                {authMode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmailInput('p.jmanoj378@gmail.com');
+                      setPasswordInput('password123');
+                    }}
+                    className="text-[9px] uppercase tracking-wider text-white/50 hover:text-white underline underline-offset-2 transition"
+                  >
+                    Use Demo Account
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-white/30" />
                 <input
@@ -561,6 +673,15 @@ export default function App() {
           </div>
 
           <button
+            id="btn-sidebar-install"
+            onClick={handleInstallApp}
+            className="flex items-center justify-center space-x-2 w-full py-2 px-3 border border-dashed border-white/20 hover:border-white/50 text-[10px] font-bold uppercase tracking-widest text-[#F5F5F5]/60 hover:text-white transition duration-300 rounded-none bg-transparent"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Install Offline App</span>
+          </button>
+
+          <button
             id="btn-sidebar-signout"
             onClick={handleSignOut}
             className="flex items-center justify-center space-x-2 w-full mt-2 py-2 px-3 border border-white/15 hover:border-white text-[10px] font-bold uppercase tracking-widest text-[#F5F5F5]/60 hover:text-white transition duration-300 rounded-none bg-transparent"
@@ -586,6 +707,8 @@ export default function App() {
               lastScore={lastPractisedScore}
               onNavigate={setActiveTab}
               onStartInterview={startPrepFromCard}
+              onInstall={handleInstallApp}
+              isInstallable={isInstallable}
             />
           )}
 

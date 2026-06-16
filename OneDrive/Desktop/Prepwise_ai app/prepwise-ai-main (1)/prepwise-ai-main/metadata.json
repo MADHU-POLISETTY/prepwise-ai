@@ -1,0 +1,6 @@
+{
+  "name": "PrepWise AI",
+  "description": "An AI-powered interview preparation platform with dynamic question generation, instant tri-domain analytical evaluations, and interactive resume audits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

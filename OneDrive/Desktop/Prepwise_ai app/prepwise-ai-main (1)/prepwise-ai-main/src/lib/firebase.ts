@@ -1,0 +1,78 @@
+import { initializeApp, getApps, getApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
+import firebaseConfig from "../../firebase-applet-config.json";
+
+let app;
+let auth: ReturnType<typeof getAuth>;
+let db: ReturnType<typeof getFirestore>;
+let isFirebaseActive = false;
+
+// Determine if config is still a placeholder or looks operational
+const isPlaceholder = 
+  !firebaseConfig ||
+  firebaseConfig.apiKey.includes("PLACEHOLDER") ||
+  firebaseConfig.projectId.includes("PLACEHOLDER");
+
+if (!isPlaceholder) {
+  try {
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+    db = getFirestore(app, firebaseConfig.firestoreDatabaseId || "(default)");
+    auth = getAuth(app);
+    isFirebaseActive = true;
+    console.log("[PrepWise AI Firebase] Firebase initialized successfully and connected in Live Cloud DB Mode.");
+
+    // Validate connection asynchronously as instructed in guideline
+    getDocFromServer(doc(db, "test", "connection")).catch((err) => {
+      if (err instanceof Error && err.message.includes("offline")) {
+        console.error("Please check your Firebase configuration and network parameters.");
+      }
+    });
+  } catch (err) {
+    console.error("[PrepWise AI Firebase] Failed to safely configure Firebase SDK. Falling back to local playground simulation.", err);
+    isFirebaseActive = false;
+  }
+} else {
+  console.log("[PrepWise AI Firebase] Running in client-side Local Storage simulation mode (No cloud Firebase config detected).");
+}
+
+export { auth, db, isFirebaseActive };
+
+// Custom Firestore Action Error codes required by Guidelines standard
+export enum OperationType {
+  CREATE = "create",
+  UPDATE = "update",
+  DELETE = "delete",
+  LIST = "list",
+  GET = "get",
+  WRITE = "write",
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+  };
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
+  const currentAuth = auth;
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: currentAuth?.currentUser?.uid || null,
+      email: currentAuth?.currentUser?.email || null,
+      emailVerified: currentAuth?.currentUser?.emailVerified || null,
+      isAnonymous: currentAuth?.currentUser?.isAnonymous || null,
+    },
+    operationType,
+    path,
+  };
+  console.error("Firestore Error Handler Triggered: ", JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}

@@ -55,13 +55,13 @@ service cloud.firestore {
           && (data.category == 'HR' || data.category == 'Technical' || data.category == 'Aptitude')
           && data.answers is list
           && data.answers.size() <= 50
-          && data.score is int
+          && data.score is number
           && data.score >= 0 && data.score <= 100
-          && data.communicationScore is int
+          && data.communicationScore is number
           && data.communicationScore >= 0 && data.communicationScore <= 100
-          && data.technicalScore is int
+          && data.technicalScore is number
           && data.technicalScore >= 0 && data.technicalScore <= 100
-          && data.confidenceScore is int
+          && data.confidenceScore is number
           && data.confidenceScore >= 0 && data.confidenceScore <= 100
           && data.feedback is string
           && data.feedback.size() <= 100000

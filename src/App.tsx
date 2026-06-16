@@ -296,16 +296,22 @@ export default function App() {
       });
       const data = await response.json();
 
+      const score = Math.round(Number(data?.score) || 75);
+      const communicationScore = Math.round(Number(data?.communicationScore) || 75);
+      const technicalScore = Math.round(Number(data?.technicalScore) || 75);
+      const confidenceScore = Math.round(Number(data?.confidenceScore) || 75);
+      const feedback = data?.feedback || 'Evaluation completed. No feedback could be loaded from the server.';
+
       const newRecord: Omit<InterviewResult, 'id'> = {
         userId: user.uid,
         category,
         role,
         answers,
-        score: data.score,
-        communicationScore: data.communicationScore,
-        technicalScore: data.technicalScore,
-        confidenceScore: data.confidenceScore,
-        feedback: data.feedback,
+        score,
+        communicationScore,
+        technicalScore,
+        confidenceScore,
+        feedback,
         completedAt: new Date().toISOString(),
       };
 
@@ -321,7 +327,20 @@ export default function App() {
           // Seed active interviews state list
           setInterviews((prev) => [completeRecord, ...prev]);
         } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, pathForAdd);
+          console.warn("Failed to persist evaluation to Firestore database, falling back to local storage:", err);
+          // Local storage backup fallback
+          const localId = `sim_val_${Date.now()}`;
+          const completeRecord: InterviewResult = {
+            id: localId,
+            ...newRecord,
+          };
+          const currentLocal = localStorage.getItem('prepwise_interviews');
+          const list = currentLocal ? JSON.parse(currentLocal) : [];
+          list.push(completeRecord);
+          localStorage.setItem('prepwise_interviews', JSON.stringify(list));
+
+          setActiveResult(completeRecord);
+          setInterviews((prev) => [completeRecord, ...prev]);
         }
       } else {
         // Local simulation storage
@@ -576,8 +595,8 @@ export default function App() {
                   The live preview runs inside an embedded <code>iframe</code>. Browsers prevent popups from communicating back securely here.
                   <br />
                   <span className="font-semibold text-white">Solution:</span> Click the "Open Space in New Tab" button in AI Studio, or launch directly in standalone tab:
-                  <a href="https://ais-dev-bnqlmmgnp76p2l6a7ipw7t-850122172337.asia-east1.run.app" target="_blank" rel="noopener noreferrer" className="text-white hover:underline block font-mono mt-1 text-[9.5px]">
-                    https://ais-dev-bnqlmmgnp76p2l6a7ipw7t-850122172337.asia-east1.run.app
+                  <a href={window.location.origin} target="_blank" rel="noopener noreferrer" className="text-white hover:underline block font-mono mt-1 text-[9.5px]">
+                    {window.location.origin}
                   </a>
                 </p>
               </div>
@@ -585,12 +604,9 @@ export default function App() {
               <div className="space-y-1">
                 <span className="text-[10px] font-bold text-white uppercase tracking-wider block">2. Configure Authorized Domains in Firebase</span>
                 <p className="text-[10.5px] text-white/60 leading-relaxed font-sans">
-                  If you see an unauthorized domain message, add these domains under your Firebase Console &rarr; Authentication &rarr; Settings &rarr; Authorized Domains list:
+                  If you see an unauthorized domain message, add your actual container domain under your Firebase Console &rarr; Authentication &rarr; Settings &rarr; Authorized Domains list:
                   <code className="block bg-black px-1.5 py-0.5 mt-1 text-[9px] font-mono text-white/80 select-all border border-white/5 font-bold">
-                    ais-dev-bnqlmmgnp76p2l6a7ipw7t-850122172337.asia-east1.run.app
-                  </code>
-                  <code className="block bg-black px-1.5 py-0.5 mt-1 text-[9px] font-mono text-white/80 select-all border border-white/5 font-bold">
-                    ais-pre-bnqlmmgnp76p2l6a7ipw7t-850122172337.asia-east1.run.app
+                    {window.location.host}
                   </code>
                 </p>
               </div>

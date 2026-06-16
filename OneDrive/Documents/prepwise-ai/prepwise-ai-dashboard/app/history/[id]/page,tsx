@@ -1,0 +1,100 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import {
+  doc,
+  getDoc,
+} from "firebase/firestore";
+
+import { db } from "@/firebase/config";
+
+export default function InterviewDetails({
+  params,
+}: any) {
+
+  const [interview, setInterview] = useState<any>(null);
+
+  useEffect(() => {
+    fetchInterview();
+  }, []);
+
+  const fetchInterview = async () => {
+
+    const docRef = doc(
+      db,
+      "interviews",
+      params.id
+    );
+
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      setInterview(docSnap.data());
+    }
+  };
+
+  if (!interview) {
+    return (
+      <main className="min-h-screen bg-black text-white p-8">
+        Loading...
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-black text-white p-8">
+
+      <div className="max-w-4xl mx-auto">
+
+        <h1 className="text-5xl font-bold mb-8">
+          Interview Details
+        </h1>
+
+        <div className="bg-zinc-900 rounded-3xl p-8 mb-8">
+
+          <h2 className="text-3xl font-bold mb-4">
+            Score
+          </h2>
+
+          <div className="text-green-400 text-6xl font-bold">
+            {interview.score}%
+          </div>
+
+        </div>
+
+        <div className="bg-zinc-900 rounded-3xl p-8">
+
+          <h2 className="text-3xl font-bold mb-6">
+            Answers
+          </h2>
+
+          <div className="space-y-4">
+
+            {interview.answers?.map(
+              (answer: string, index: number) => (
+
+                <div
+                  key={index}
+                  className="bg-zinc-800 p-4 rounded-2xl"
+                >
+
+                  <p className="text-blue-400 mb-2">
+                    Question {index + 1}
+                  </p>
+
+                  <p>{answer}</p>
+
+                </div>
+              )
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </main>
+  );
+}

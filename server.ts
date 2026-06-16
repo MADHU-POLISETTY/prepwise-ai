@@ -273,9 +273,93 @@ app.post("/api/analyze-resume", async (req, res) => {
   }
 });
 
+// 5. Ask MS AI Chat Board
+app.post("/api/ask-ms", async (req, res) => {
+  const { messages = [] } = req.body;
+
+  const client = getGeminiClient();
+  if (!client) {
+    const lastUserMsg = messages[messages.length - 1]?.text || "";
+    return res.json({ text: getSimulatedAskMS(lastUserMsg) });
+  }
+
+  try {
+    const contents = messages.map((m: any) => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.text }]
+    }));
+
+    const response = await client.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: contents,
+      config: {
+        systemInstruction: "You are 'Ask MS' (Mentor & Support), the primary professional AI coach at PrepWise AI. Answer candidate questions about career growth, interview preparation strategies (STAR method, system design approaches, behaviorals), and resume details. Maintain a premium, minimal, focused tone of a senior lead from Stripe, Notion, Linear, or OpenAI. Keep responses under 3 paragraphs with generous whitespace (Markdown bullet points are preferred) and avoid conversational filler or meta-references. Be encouraging, precise, and highly practical.",
+      }
+    });
+
+    res.json({ text: response.text || "I apologize, but I could not synthesize a feedback trajectory. Please rephrase." });
+  } catch (err: any) {
+    console.error("Ask MS AI endpoint failed:", err);
+    const lastUserMsg = messages[messages.length - 1]?.text || "";
+    res.json({ text: getSimulatedAskMS(lastUserMsg) });
+  }
+});
+
 // ----------------------------------------------------
 // LOCAL SIMULATION BACKUPS (FALLBACK FLOWS)
 // ----------------------------------------------------
+
+function getSimulatedAskMS(query: string): string {
+  const q = query.toLowerCase();
+  if (q.includes("system") || q.includes("architecture") || q.includes("stripe") || q.includes("notion") || q.includes("scale")) {
+    return `### Mastering System Design: Prime Checklist
+
+As your Career Mentor, here is how you stand out when detailing architectures:
+
+1. **Explicit API Specs First:** Never jump into sharding or caching layers. Draft the target REST or gRPC endpoint schemes explicitly.
+2. **Back-of-the-Envelope Math:** Quantify the scale index. For instance, "10 million daily active users means roughly 115 requests per second average, peaking at 500."
+3. **Database Paradigms:** Do not just say 'SQL'. Contrast write-heavy indexes vs. read-heavy caching with exact configurations (e.g., leveraging Redis clusters or partitioned tables).
+4. **Resilience & Backpressure:** Highlight failover patterns, message queues (like Kafka or Pub/Sub), and token-bucket rate limiting.
+
+Would you like to run a mock Technical Session right now to practice this?`;
+  }
+  if (q.includes("star") || q.includes("behavioral") || q.includes("hr")) {
+    return `### The STAR Presentation Formula
+
+To sound like a senior specialist at elite teams, format your narratives exactly like this:
+
+- **S / Situation:** Highlight a specific, complex operational failure, tight timeline, or team alignment challenge (1-2 sentences).
+- **T / Task:** State the core conflict or high-value deliverable you were directly accountable for.
+- **A / Action:** Use strong active verbs. Mention *your* distinct engineering step, communication resolve, or metric evaluation.
+- **R / Result:** Conclude with *quantifiable metrics* (e.g., "reduced latency by 24%", "increased container utilization by 15%").
+
+How is your star story directory looking? Paste a draft here and let is analyze it.`;
+  }
+  if (q.includes("resume") || q.includes("cv") || q.includes("ats")) {
+    return `### ATS Alignment Best Practices
+
+To make your resume look like a perfect fit:
+
+- **Context-Agnostic Vocabulary:** ATS scanners look for literal technology nouns matching the job posting (e.g., "TypeScript", "Docker", "Redux State").
+- **Metrics, Not Actions:** Move away from vague claims like "responsible for system upgrades". Lead with the impact: *"Modernized core CI/CD pipelines, saving developers 12 minutes per pull request sequence."*
+- **Layout Precision:** Avoid multi-column color designs which can break parsing engines. Stick to single-column, clean chronological structure.
+
+You can upload your profile PDF into our **Resume Analyzer** workspace tab for a real-time compliance score.`;
+  }
+  
+  return `### Hello! I am MS, your career mentor.
+
+I am configured to act as your personalized system architect and narrative talent coach.
+
+How can I help you accelerate your interview readiness today?
+
+- **"STAR behavioral examples"**: How to structure soft-skill conflict questions.
+- **"Stripe System Design framework"**: Best practices for scalable APIs.
+- **"Resume keyword tips"**: Optimizing your CV for recruiter pipelines.
+- **"Microservices trade-offs"**: Assessing state, storage, and synchronization.
+
+Specify a topic, and let's craft your high-impact technical portfolio.`;
+}
 
 function getSimulatedQuestions(category: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = "") {
   const genericTopic = customTopic || "Industry Standard Concepts";

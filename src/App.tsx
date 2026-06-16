@@ -28,6 +28,7 @@ import ResultsView from './components/ResultsView';
 import HistoryDashboard from './components/HistoryDashboard';
 import ResumeAnalyzer from './components/ResumeAnalyzer';
 import ProfileView from './components/ProfileView';
+import AskMS from './components/AskMS';
 
 // Firebase client definitions
 import { auth, db, isFirebaseActive, handleFirestoreError, OperationType } from './lib/firebase';
@@ -784,6 +785,7 @@ Due to current cloud connection constraints, this response was processed instant
               {[
                 { id: 'dashboard', label: 'Dashboard', icon: Home },
                 { id: 'interview-config', label: 'Interview Coach', icon: Play },
+                { id: 'ask-ms', label: 'Ask MS AI Board', icon: Sparkles },
                 { id: 'history', label: 'Histories & Logs', icon: History },
                 { id: 'resume', label: 'Resume Analyzer', icon: FileText },
                 { id: 'profile', label: 'Candidate Analytics', icon: UserIcon },
@@ -910,6 +912,10 @@ Due to current cloud connection constraints, this response was processed instant
           )}
 
           {activeTab === 'resume' && user && <ResumeAnalyzer />}
+
+          {activeTab === 'ask-ms' && user && (
+            <AskMS userId={user.uid} userEmail={user.email} />
+          )}
 
           {activeTab === 'profile' && user && (
             <ProfileView userEmail={user.email} interviewsList={interviews} />

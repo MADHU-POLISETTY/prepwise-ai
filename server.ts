@@ -279,8 +279,10 @@ app.post("/api/ask-ms", async (req, res) => {
 
   const client = getGeminiClient();
   if (!client) {
-    const lastUserMsg = messages[messages.length - 1]?.text || "";
-    return res.json({ text: getSimulatedAskMS(lastUserMsg) });
+    console.error("Ask MS AI endpoint failed: Gemini API key is missing or invalid in environment.");
+    return res.status(500).json({ 
+      error: "Gemini API Client is not configured. Please ensure your GEMINI_API_KEY is configured correctly in Settings > Secrets." 
+    });
   }
 
   try {
@@ -297,11 +299,15 @@ app.post("/api/ask-ms", async (req, res) => {
       }
     });
 
-    res.json({ text: response.text || "I apologize, but I could not synthesize a feedback trajectory. Please rephrase." });
+    const replyText = response.text;
+    if (!replyText) {
+      throw new Error("No response text returned from Gemini API");
+    }
+
+    res.json({ text: replyText });
   } catch (err: any) {
     console.error("Ask MS AI endpoint failed:", err);
-    const lastUserMsg = messages[messages.length - 1]?.text || "";
-    res.json({ text: getSimulatedAskMS(lastUserMsg) });
+    res.status(500).json({ error: err?.message || String(err) });
   }
 });
 

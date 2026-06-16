@@ -147,7 +147,22 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
         body: JSON.stringify({ messages: payloadMessages })
       });
 
+      if (!res.ok) {
+        let errMsg = "Unknown server communication failure.";
+        try {
+          const errData = await res.json();
+          errMsg = errData.error || errData.message || errMsg;
+        } catch {
+          const text = await res.text().catch(() => "");
+          if (text) errMsg = text.slice(0, 200);
+        }
+        throw new Error(errMsg);
+      }
+
       const data = await res.json();
+      if (!data || (!data.text && data.error)) {
+        throw new Error(data.error || "Malformed response from AI endpoint");
+      }
       
       const modelMsg: Message = {
         userId,
@@ -162,12 +177,14 @@ export default function AskMS({ userId, userEmail }: AskMSProps) {
       // Update local storage representation for robust persistence fallback
       localStorage.setItem(`ask_ms_chats_${userId}`, JSON.stringify([...activeHistory, savedModelMsg]));
 
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to fetch response from Ask MS endpoint:", err);
+      const realErrorMessage = err instanceof Error ? err.message : String(err);
+      
       const errorMsg: Message = {
         userId,
         role: 'model',
-        text: "My neural system encountered a connection lag. Let me simulate a brief check: please verify your internet parameters or reload.",
+        text: `### ⚠️ AI Advisory Board Error\n\nMS encountered a pipeline failure: **${realErrorMessage}**\n\nPlease check back in a few moments, or check your API configuration in Settings.`,
         createdAt: new Date().toISOString()
       };
       const savedErrorMsg = await saveMessage(errorMsg);

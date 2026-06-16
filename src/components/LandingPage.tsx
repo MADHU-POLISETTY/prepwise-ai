@@ -3,12 +3,13 @@ import { Target, Shield, BookOpen, BrainCircuit, BarChart3, ChevronRight, FileTe
 import { motion } from 'motion/react';
 
 interface LandingPageProps {
-  onGetStarted: () => void;
+  onSignIn: () => void;
+  onRegister: () => void;
   onInstall: () => void;
   isInstallable: boolean;
 }
 
-export default function LandingPage({ onGetStarted, onInstall, isInstallable }: LandingPageProps) {
+export default function LandingPage({ onSignIn, onRegister, onInstall, isInstallable }: LandingPageProps) {
   return (
     <div id="landing-page-container" className="min-h-screen bg-[#050505] text-[#F5F5F5] flex flex-col selection:bg-white selection:text-black overflow-hidden relative">
       
@@ -32,8 +33,15 @@ export default function LandingPage({ onGetStarted, onInstall, isInstallable }: 
             <span>Install App</span>
           </button>
           <button
+            id="btn-header-register"
+            onClick={onRegister}
+            className="hidden sm:inline-block px-4 py-2 border border-white/15 text-xs font-bold uppercase tracking-widest text-[#F5F5F5]/70 hover:text-white hover:border-white/40 transition duration-300"
+          >
+            Create Account
+          </button>
+          <button
             id="btn-header-login"
-            onClick={onGetStarted}
+            onClick={onSignIn}
             className="px-6 py-2 bg-white text-black text-xs font-bold uppercase tracking-widest hover:bg-neutral-200 transition duration-300 border border-white"
           >
             Sign In
@@ -82,28 +90,29 @@ export default function LandingPage({ onGetStarted, onInstall, isInstallable }: 
         >
           <button
             id="btn-hero-primary"
-            onClick={onGetStarted}
+            onClick={onRegister}
             className="px-8 py-4 bg-[#F5F5F5] font-bold text-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all shadow-md flex items-center justify-center space-x-2 border border-white"
           >
-            <span>Start Practice Free</span>
+            <span>Create Account (Free)</span>
             <ChevronRight className="w-4 h-4 flex-shrink-0" />
+          </button>
+
+          <button
+            id="btn-hero-login-secondary"
+            onClick={onSignIn}
+            className="px-8 py-4 border border-white/20 text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition flex items-center justify-center"
+          >
+            <span>Sign In</span>
           </button>
           
           <button
             id="btn-hero-install-secondary"
             onClick={onInstall}
-            className="px-8 py-4 border border-white/20 text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition flex items-center justify-center space-x-2"
+            className="px-8 py-4 border border-white/10 text-white/60 hover:text-white font-bold text-xs uppercase tracking-[0.2em] hover:bg-white/5 transition flex items-center justify-center space-x-2"
           >
-            <Download className="w-4 h-4 shrink-0 text-white/80" />
-            <span>Download Native App</span>
+            <Download className="w-4 h-4 shrink-0 text-white/50" />
+            <span>Download App</span>
           </button>
-
-          <a
-            href="#features-section"
-            className="px-8 py-4 border border-white/10 text-white/80 text-xs font-bold uppercase tracking-[0.2em] hover:text-white hover:border-white/30 transition flex items-center justify-center"
-          >
-            Explore Features
-          </a>
         </motion.div>
       </section>
 
@@ -163,7 +172,7 @@ export default function LandingPage({ onGetStarted, onInstall, isInstallable }: 
           <p className="text-white/60 font-light text-base max-w-md mx-auto mb-10">Access instant AI coaching feedback and track your practice session scores over time securely.</p>
           <button
             id="btn-cta-action"
-            onClick={onGetStarted}
+            onClick={onRegister}
             className="px-10 py-5 bg-white text-black font-bold uppercase text-xs tracking-[0.2em] hover:bg-neutral-200 transition duration-300"
           >
             Get Started Instantly

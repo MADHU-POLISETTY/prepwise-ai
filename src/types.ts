@@ -37,4 +37,35 @@ export interface ResumeAnalysisResult {
   strengths: string[];
   improvements: string[];
   summary: string;
+  atsScore: number;
+  keywordMatches: { word: string; matched: boolean }[];
+  missingSkills: string[];
 }
+
+export type InterviewDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+
+export interface UserStats {
+  completedInterviews: number;
+  averageScore: number;
+  currentStreak: number;
+  xp: number;
+  unlockedBadges: string[];
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  unlocked: boolean;
+  xpAward: number;
+  icon: string;
+}
+
+export interface LeaderboardUser {
+  rank: number;
+  name: string;
+  xp: number;
+  avatar: string;
+  isCurrentUser?: boolean;
+}
+

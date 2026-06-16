@@ -57,6 +57,12 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any | null>(null);
   const [isInstallable, setIsInstallable] = useState(false);
 
+  // App Theme state
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   // Listen to PWA installation prompts
   useEffect(() => {
     const handleBeforeInstall = (e: Event) => {
@@ -417,6 +423,11 @@ Due to current cloud connection constraints, this response was processed instant
   };
 
   const handleDeleteRecord = async (id: string) => {
+    if (user?.uid.startsWith('sim_user')) {
+      alert("Simulated candidate profiles are set to read-only mode. Record purging is disallowed on simulated sessions.");
+      return;
+    }
+
     if (isFirebaseActive && db && !user?.uid.startsWith('sim_user')) {
       const pathForDelete = `interviews/${id}`;
       try {
@@ -467,6 +478,8 @@ Due to current cloud connection constraints, this response was processed instant
         onRegister={() => { setAuthMode('register'); setActiveTab('auth'); }}
         onInstall={handleInstallApp}
         isInstallable={isInstallable}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
     );
   }
@@ -842,11 +855,14 @@ Due to current cloud connection constraints, this response was processed instant
           {activeTab === 'dashboard' && user && (
             <Dashboard
               userEmail={user.email}
-              totalInterviews={totalPracticeCount}
-              averageScore={aggregateScoreAvg}
-              lastScore={lastPractisedScore}
+              interviews={interviews}
               onNavigate={setActiveTab}
               onStartInterview={startPrepFromCard}
+              onViewResult={(record) => {
+                setActiveResult(record);
+                setActiveTab('results');
+              }}
+              onDeleteRecord={handleDeleteRecord}
               onInstall={handleInstallApp}
               isInstallable={isInstallable}
             />

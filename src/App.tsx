@@ -170,9 +170,15 @@ const INITIAL_HISTORY: InterviewSessionRecord[] = [
 ];
 
 export default function App() {
+  // Launch Flow States
+  const [showSplash, setShowSplash] = useState<boolean>(true);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem('pw_is_logged_in') === 'true';
+  });
+
   // Mobile app navigation state
   const [activeTab, setActiveTab] = useState<'home' | 'interview' | 'resume' | 'dashboard' | 'profile'>('home');
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(true); // Forced full screen app container
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [isFirebaseUserReady, setIsFirebaseUserReady] = useState<boolean>(false);
 
@@ -180,6 +186,12 @@ export default function App() {
   const [userName, setUserName] = useState<string>(() => localStorage.getItem('pw_user_name') || 'James Manoj');
   const [userEmail, setUserEmail] = useState<string>(() => localStorage.getItem('pw_user_email') || 'candidate.preview@prepwise.ai');
   const [userGoal, setUserGoal] = useState<string>(() => localStorage.getItem('pw_user_goal') || 'Senior Software Engineer');
+  
+  // Login Form input bindings
+  const [loginFormName, setLoginFormName] = useState<string>(() => localStorage.getItem('pw_user_name') || '');
+  const [loginFormEmail, setLoginFormEmail] = useState<string>(() => localStorage.getItem('pw_user_email') || '');
+  const [loginFormGoal, setLoginFormGoal] = useState<string>(() => localStorage.getItem('pw_user_goal') || '');
+
   const [streakCount, setStreakCount] = useState<number>(5);
 
   // Lists for dynamic additions
@@ -255,6 +267,45 @@ export default function App() {
   useEffect(() => {
     setMockRole(userGoal);
   }, [userGoal]);
+
+  // Auto-expire Splash Screen
+  useEffect(() => {
+    const splashTimer = setTimeout(() => {
+      setShowSplash(false);
+    }, 1800);
+    return () => clearTimeout(splashTimer);
+  }, []);
+
+  // Native Auth Form Submission Action
+  const handleSignUpLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginFormName.trim()) {
+      showToast("Please enter your name", "error");
+      return;
+    }
+    const finalName = loginFormName.trim();
+    const finalEmail = loginFormEmail.trim() || 'candidate.anon@prepwise.ai';
+    const finalGoal = loginFormGoal.trim() || 'Software Engineer';
+
+    setUserName(finalName);
+    setUserEmail(finalEmail);
+    setUserGoal(finalGoal);
+
+    localStorage.setItem('pw_user_name', finalName);
+    localStorage.setItem('pw_user_email', finalEmail);
+    localStorage.setItem('pw_user_goal', finalGoal);
+    localStorage.setItem('pw_is_logged_in', 'true');
+    setIsLoggedIn(true);
+
+    showToast(`Welcome back, ${finalName}! Portal synchronized.`, "success");
+  };
+
+  // Sign out handler from Profile page
+  const handleSignOut = () => {
+    localStorage.removeItem('pw_is_logged_in');
+    setIsLoggedIn(false);
+    showToast("Session disconnected. Re-authenticate to access boards.", "info");
+  };
 
   // Scroll to latest Mentor dialogue
   useEffect(() => {
@@ -647,87 +698,164 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-[#07090e] text-white font-sans selection:bg-indigo-500/80 antialiased ${themeMode === 'light' ? 'bg-neutral-50 text-neutral-900' : ''}`}>
+    <div className={`min-h-screen bg-[#07090e] text-white font-sans selection:bg-indigo-500/80 antialiased relative flex flex-col ${themeMode === 'light' ? 'bg-neutral-50 text-[#07090e]' : ''}`}>
       
       {/* Decorative ambient blurred grid background logic */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.06),transparent_50%)] pointer-events-none" />
-      <div className="absolute top-[20%] left-[10%] w-[350px] height-[350px] rounded-full bg-emerald-500/[0.02] filter blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.06),transparent_50%)] pointer-events-none z-0" />
+      <div className="absolute top-[20%] left-[10%] w-[350px] h-[350px] rounded-full bg-emerald-500/[0.02] filter blur-3xl pointer-events-none z-0" />
 
-      {/* Floating System Assessment Logs Toast Notification */}
+      {/* Floating global dynamic toast alert */}
       {toastMessage && (
-        <div id="pw-global-toast" className={`fixed top-4 right-4 z-[9999] p-4 rounded-2xl shadow-2xl flex items-center space-x-3 transition-transform animate-bounce text-sm max-w-sm ${
-          toastMessage.type === 'success' ? 'bg-[#10B981] text-white' :
-          toastMessage.type === 'error' ? 'bg-red-500 text-white' : 'bg-indigo-600 text-white'
+        <div id="pw-global-toast" className={`fixed top-12 left-1/2 -translate-x-1/2 z-[9999] p-4 rounded-2xl shadow-2xl flex items-center space-x-3 transition-transform animate-fade-in text-xs max-w-sm border ${
+          toastMessage.type === 'success' ? 'bg-emerald-950/95 text-emerald-300 border-emerald-500/30' :
+          toastMessage.type === 'error' ? 'bg-red-950/95 text-red-301 border-red-500/30' : 'bg-indigo-950/95 text-indigo-300 border-indigo-500/30'
         }`}>
-          {toastMessage.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
-          {toastMessage.type === 'error' && <AlertTriangle className="w-5 h-5 flex-shrink-0" />}
-          {toastMessage.type === 'info' && <Info className="w-5 h-5 flex-shrink-0" />}
+          {toastMessage.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+          {toastMessage.type === 'error' && <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />}
+          {toastMessage.type === 'info' && <Info className="w-4 h-4 text-indigo-400 flex-shrink-0" />}
           <span className="font-medium">{toastMessage.text}</span>
         </div>
       )}
 
-      {/* Dual Layout Toggle controls for desktop preview comfort */}
-      <div className="hidden md:flex justify-between items-center px-8 py-3 bg-[#0a0d14]/75 border-b border-indigo-950/20 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-tr from-indigo-600 to-indigo-500 p-2 rounded-xl text-white shadow-lg">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
-              PrepWise AI Mobile Core <span className="text-[9px] bg-indigo-500/20 text-indigo-300 font-mono px-1.5 py-0.5 rounded font-bold uppercase tracking-widest">v2.1 Production</span>
-            </h1>
-            <p className="text-[10px] text-zinc-400">High-Fidelity Candidate Mock Interview & Resume Optimization Shell</p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setIsFullscreen(prev => !prev)}
-            className="text-[11px] font-mono py-1.5 px-3 rounded-lg bg-zinc-850 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/50 hover:text-white transition-all flex items-center gap-1.5"
-          >
-            {isFullscreen ? "Device View Simulator" : "Max Full Screen Layout"}
-          </button>
+      {/* 1. NATIVE IMMERSIVE SPLASH SCREEN FLOW */}
+      {showSplash && (
+        <div className="fixed inset-0 bg-[#07090e] flex flex-col items-center justify-center z-[99999] p-6 text-center select-none overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.08),transparent_70%)] pointer-events-none" />
           
-          <button
-            onClick={() => setThemeMode(prev => prev === 'dark' ? 'light' : 'dark')}
-            className="text-xs bg-zinc-850 hover:bg-zinc-800 border border-zinc-700/50 p-2 rounded-xl transition"
-            title="Toggle theme mode"
-          >
-            {themeMode === 'dark' ? "☀️ Light UI" : "🌙 Dark UI"}
-          </button>
+          <div className="space-y-6 max-w-xs flex flex-col items-center">
+            {/* Pulsing visual element mark */}
+            <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-2xl shadow-indigo-500/30 relative animate-pulse">
+              <Sparkles className="w-10 h-10 text-white fill-white/10" />
+              <span className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-[8.5px] font-mono font-black uppercase text-black px-1.5 py-0.5 rounded-md tracking-wider">PREP</span>
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl font-black tracking-tight text-white uppercase font-sans">PrepWise AI</h1>
+              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono">Mobile Core Engine v3.0</p>
+            </div>
+
+            <div className="flex items-center space-x-2 pt-4">
+              <RefreshCw className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+              <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Syncing Recruiting Patterns...</span>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Primary Simulator Workspace Grid system */}
-      <main className="w-full max-w-[1700px] mx-auto p-4 md:p-8 flex items-center justify-center">
-
-        <div className={`w-full transition-all duration-300 ${isFullscreen ? 'max-w-7xl' : 'max-w-md'}`}>
-          <div className={`bg-black rounded-[40px] shadow-[0_32px_80px_rgba(0,0,0,0.85)] border-[8px] border-zinc-800 relative flex flex-col overflow-hidden aspect-[9/19] select-none ${
-            isFullscreen ? 'aspect-auto min-h-[85vh] rounded-[24px] border-0 shadow-none' : ''
-          }`}>
-            
-            {/* Phone Camera Notch (Hidden in full screen mode) */}
-            {!isFullscreen && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-3xl z-50 flex items-center justify-center">
-                <span className="w-12 h-1 bg-zinc-850 rounded-full" />
-                <span className="w-2.5 h-2.5 bg-indigo-950 rounded-full ml-3 border border-zinc-900" />
+      {/* 2. AUTHENTICATION LOGIN & SIGNUP PORTAL SCREEN */}
+      {!showSplash && !isLoggedIn && (
+        <div className="min-h-screen w-full flex flex-col justify-center items-center p-6 bg-[#07090e] z-[999] overflow-y-auto animate-fade-in">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(110,80,250,0.06),transparent_60%)] pointer-events-none" />
+          
+          <div className="w-full max-w-sm space-y-7 bg-[#0b0e14]/90 border border-zinc-900 rounded-[32px] p-6 md:p-8 shadow-2xl">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto">
+                <UserCheck className="w-6 h-6" />
               </div>
-            )}
+              <h2 className="text-xl font-extrabold text-white tracking-tight">Create PrepWise Profile</h2>
+              <p className="text-xs text-zinc-400">Configure your target credentials. Gemini uses these metadata filters to custom-compile all interviews.</p>
+            </div>
 
-            {/* Simulated Virtual Status Navigation Bar */}
-            <div className={`flex items-center justify-between px-6 pt-10 pb-2 bg-[#080b11] text-[10px] font-mono text-zinc-400 select-none shrink-0 z-45 border-b border-indigo-950/20 ${isFullscreen ? 'hidden' : ''}`}>
-              <div className="flex items-center space-x-1 font-bold">
-                <span>9:41</span>
-                <Globe className="w-2.5 h-2.5 text-zinc-500" />
+            <form onSubmit={handleSignUpLogin} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Candidate Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={loginFormName}
+                  onChange={(e) => setLoginFormName(e.target.value)}
+                  placeholder="e.g. James Manoj"
+                  className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                />
               </div>
-              <div className="flex items-center space-x-1">
-                <span>5G</span>
-                <span className="h-2 w-3.5 bg-emerald-500 rounded-xs border border-zinc-850" />
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Target Job Title Focus</label>
+                <input
+                  type="text"
+                  required
+                  value={loginFormGoal}
+                  onChange={(e) => setLoginFormGoal(e.target.value)}
+                  placeholder="e.g. Senior Backend Architect"
+                  className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Primary Email address</label>
+                <input
+                  type="email"
+                  value={loginFormEmail}
+                  onChange={(e) => setLoginFormEmail(e.target.value)}
+                  placeholder="e.g. developer@prepwise.ai"
+                  className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-3 px-4 text-xs font-bold uppercase tracking-wider font-mono transition cursor-pointer flex items-center justify-center space-x-1.5"
+              >
+                <span>Launch App Workspace</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </form>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setUserName("James Jane");
+                  setUserGoal("Lead Product Developer");
+                  setUserEmail("guest.user@prepwise-sim.ai");
+                  localStorage.setItem('pw_user_name', "James Jane");
+                  localStorage.setItem('pw_user_goal', "Lead Product Developer");
+                  localStorage.setItem('pw_is_logged_in', 'true');
+                  setIsLoggedIn(true);
+                  showToast("Authenticated anonymously as Guest", "info");
+                }}
+                className="text-[10.5px] text-zinc-500 hover:text-indigo-400 transition"
+              >
+                Skip authentication and enter as guest
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. CORE APP INTERFACE VIEWER */}
+      {!showSplash && isLoggedIn && (
+        <div className="flex-1 w-full flex flex-col relative min-h-screen">
+          
+          {/* Edge-to-Edge Simulated Real Professional Status Indicator Bar */}
+          <header className="sticky top-0 bg-[#07090e]/95 backdrop-blur-md border-b border-zinc-900/60 z-40 px-6 py-3.5 flex items-center justify-between text-left select-none shrink-0 font-sans">
+            <div className="flex items-center space-x-2">
+              <div className="w-7 h-7 bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white rounded-lg flex items-center justify-center shadow-md">
+                <Sparkles className="w-4 h-4 text-white fill-white/10" />
+              </div>
+              <div>
+                <h1 className="text-xs font-black uppercase text-white tracking-widest">PrepWise AI</h1>
+                <p className="text-[8px] font-mono text-zinc-500 tracking-wider">Candidate Control Center</p>
               </div>
             </div>
 
-            {/* DYNAMIC VIEW CONTAINER */}
-            <div className={`flex-1 overflow-y-auto p-4 md:p-6 text-left relative bg-[#090b11] ${themeMode === 'light' ? 'bg-[#f8f9fc]' : ''}`} style={{ scrollbarWidth: 'none' }}>
+            <div className="flex items-center space-x-2.5">
+              <div className="flex items-center space-x-1.5 bg-zinc-900/80 p-1 px-2.5 rounded-full border border-zinc-850">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-mono text-zinc-400 uppercase">SYS ACTIVE</span>
+              </div>
+              <button 
+                onClick={() => setActiveTab('profile')}
+                className="w-7 h-7 rounded-full bg-zinc-850 hover:bg-zinc-805 text-zinc-400 flex items-center justify-center border border-zinc-800"
+              >
+                <User className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </header>
+
+          {/* MAIN DYNAMIC SCREEN CONTENT VIEW CANVAS */}
+          <main className="flex-1 overflow-y-auto px-4 py-6 md:px-8 text-left bg-gradient-to-b from-[#07090e] to-[#04060b] relative pb-32">
+            
               
               {/* SCREEN 1: HOME PANEL */}
               {activeTab === 'home' && (
@@ -1470,12 +1598,20 @@ export default function App() {
                   </div>
 
                   {/* Reset indicators */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-mono uppercase text-zinc-550 block font-bold">System Maintenance</span>
+                  <div className="space-y-2.5">
+                    <span className="text-[10px] font-mono uppercase text-zinc-550 block font-bold">System Maintenance & Session</span>
                     
                     <button
+                      onClick={handleSignOut}
+                      className="w-full bg-[#1b223c] hover:bg-[#252f53] text-indigo-300 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Log Out / Switch Account</span>
+                    </button>
+
+                    <button
                       onClick={handleResetSystemCache}
-                      className="w-full bg-red-500/10 border border-red-500/20 text-red-400 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center space-x-1.5"
+                      className="w-full bg-red-500/10 border border-red-500/10 hover:bg-red-500/15 text-red-400 py-3 rounded-2xl text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                       <span>Purge Local System Memory</span>
@@ -1485,7 +1621,7 @@ export default function App() {
                 </div>
               )}
 
-            </div>
+            </main>
 
             {/* FLOATING GLASS INDIGO ASSISTANT DRAWER PANEL */}
             {mentorOpen && (
@@ -1657,46 +1793,38 @@ export default function App() {
               </div>
             )}
 
-            {/* Simulated Glassmorphism Bottom Navigation Dock inside Phone Chassis */}
-            <nav className="absolute bottom-4 left-4 right-4 bg-black/85 backdrop-blur-md border border-zinc-800 rounded-3xl py-2 px-3 flex items-center justify-between select-none z-40 shadow-2xl">
-              {[
-                { id: 'home', label: 'Home', icon: Home },
-                { id: 'interview', label: 'Interview', icon: Play },
-                { id: 'resume', label: 'Resume', icon: FileText },
-                { id: 'dashboard', label: 'Metrics', icon: BarChart3 },
-                { id: 'profile', label: 'Profile', icon: User }
-              ].map((navTab) => {
-                const isActive = activeTab === navTab.id;
-                const IconComp = navTab.icon;
-                return (
-                  <button
-                    key={navTab.id}
-                    onClick={() => {
-                      setActiveTab(navTab.id as any);
-                    }}
-                    className={`flex flex-col items-center flex-1 cursor-pointer transition-transform py-1 group ${
-                      isActive ? 'text-indigo-400 font-bold scale-105' : 'text-zinc-500 hover:text-white/60'
-                    }`}
-                  >
-                    <IconComp className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-400 fill-indigo-500/10' : ''}`} />
-                    <span className="text-[8px] mt-0.5">{navTab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
 
-            {/* Apple Home Indicator Bar */}
-            <div className="absolute bottom-1 right-1/2 translate-x-1/2 w-28 h-1 bg-zinc-850 rounded-full z-50 pointer-events-none" />
+          {/* Real Full Screen Immersive Bottom Navigation Dock */}
+          <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] max-w-sm bg-[#080a0f]/95 backdrop-blur-md border border-zinc-850 rounded-[24px] py-1.5 px-3 flex items-center justify-between select-none z-45 shadow-[0_16px_40px_rgba(0,0,0,0.85)]">
+            {[
+              { id: 'home', label: 'Home', icon: Home },
+              { id: 'interview', label: 'Interview', icon: Play },
+              { id: 'resume', label: 'Resume', icon: FileText },
+              { id: 'dashboard', label: 'Analytics', icon: BarChart3 },
+              { id: 'profile', label: 'Profile', icon: User }
+            ].map((navTab) => {
+              const isActive = activeTab === navTab.id;
+              const IconComp = navTab.icon;
+              return (
+                <button
+                  key={navTab.id}
+                  onClick={() => {
+                    setActiveTab(navTab.id as any);
+                  }}
+                  className={`flex flex-col items-center flex-1 cursor-pointer transition-all py-1.5 group ${
+                    isActive ? 'text-indigo-400 font-extrabold scale-105' : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  <IconComp className={`w-4.5 h-4.5 transition-transform group-hover:scale-110 ${isActive ? 'text-indigo-400 fill-indigo-500/10' : ''}`} />
+                  <span className="text-[9px] mt-0.5 tracking-tight">{navTab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
-          </div>
         </div>
+      )}
 
-      </main>
-
-      {/* High-contrast beautiful display footer links */}
-      <footer className="py-6 px-10 text-center text-zinc-550 border-t border-indigo-950/20 text-xs font-mono relative z-10">
-        PrepWise AI Core Framework Workspace &copy; 2026. Powered by Google AI Studio Gemini 3.5.
-      </footer>
     </div>
   );
 }

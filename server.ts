@@ -170,23 +170,30 @@ app.post("/api/evaluate-answer", async (req, res) => {
 
   try {
     // STEP 1: Generate an ideal answer using Gemini 2.5 Flash
-    const idealPrompt = `You are a professional subject matter expert and elite technical interviewer.
-Generate an outstanding, highly detailed, technically correct, and comprehensive model answer for the following interview question.
-This answer must be specific to the question, avoiding generic templates or placeholder text. It must be highly suitable for interview preparation and show exactly what a perfect candidate would explain.
+    const idealPrompt = `You are an elite, student-friendly technical instructor and career mentor. Your goal is to generate a model answer for the following question that is perfect yet extremely easy to understand for college students and freshers.
 
 Question:
 "${question}"
 
+STRICT GUIDELINES FOR THE GENERATED MODEL ANSWER:
+1. Use SIMPLE, EASY-TO-UNDERSTAND ENGLISH. No complex corporate speak or difficult jargon without explanation.
+2. It must be SHORT AND CONCISE (maximum 100 to 200 words).
+3. It must be technically 100% correct, but presented in natural, conversational, and beginner-friendly language.
+4. Use simple analogies, bullet points, or simple examples where they help explain the concept quickly.
+5. If the question asks for past experience or a "real-life scenario" (and the candidate is a fresher), generate a simple, realistic scenario that a student or junior developer can easily explain (e.g., a simple lab project, a small team project, debugging a local error, fixing permission or code issues, checking logs, etc.).
+6. Avoid abstract templates or placeholders like "Define concepts..." - you must output the ACTUAL, specific answer to this question.
+7. Support any of the standard domains (Java, Python, AWS, DevOps, AI/ML, DBMS, OS, CN, DSA, HR, Aptitude, Cloud Computing, Linux, Docker, Kubernetes, Terraform).
+
 Return your output in a valid JSON object matching this schema:
 {
-  "idealAnswer": "Your generated model answer here"
+  "idealAnswer": "Your simple, beginner-friendly model answer here (under 200 words)"
 }`;
 
     const idealResponse = await client.models.generateContent({
       model: "gemini-2.5-flash",
       contents: idealPrompt,
       config: {
-        systemInstruction: "You are a master technical interviewer and expert career coach.",
+        systemInstruction: "You are an encouraging, elite technical teacher and career mentor who explains complex topics in simple terms for freshers and students.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

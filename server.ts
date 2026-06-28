@@ -6,6 +6,8 @@ import { createServer as createViteServer } from "vite";
 
 dotenv.config();
 
+console.log("Gemini API Key exists:", !!process.env.GEMINI_API_KEY);
+
 const app = express();
 const PORT = 3000;
 
@@ -83,7 +85,10 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 
 // 1. Healthcheck
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    geminiConfigured: !!process.env.GEMINI_API_KEY
+  });
 });
 
 // 2. Generate Interview Questions
@@ -1416,4 +1421,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;

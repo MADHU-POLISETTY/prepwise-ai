@@ -388,23 +388,7 @@ Return ONLY JSON:
       });
     }
 
-    const lowercaseAns = cleanAnswer.toLowerCase();
-    // Programmatic heuristic detection of common gibberish/meaningless text
-    const isObviousGibberish = 
-      lowercaseAns.length < 15 && (
-        /^[a-z\s]{1,3}$/.test(lowercaseAns) || 
-        /^(.)\1+$/.test(lowercaseAns.replace(/\s+/g, '')) || 
-        /^[bcdfghjklmnpqrstvwxyz\s]+$/.test(lowercaseAns) || 
-        lowercaseAns === "asdf" ||
-        lowercaseAns === "asdfgh" ||
-        lowercaseAns === "ghg hhg" ||
-        lowercaseAns === "abc xyz" ||
-        lowercaseAns === "idk" ||
-        lowercaseAns === "skip" ||
-        lowercaseAns === "none"
-      );
-
-    if (isObviousGibberish) {
+    if (isGibberishOrInvalid(cleanAnswer)) {
       return res.json({
         isMeaningful: false,
         isRelevant: false,
@@ -962,6 +946,39 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
   }));
 }
  
+export function isGibberishOrInvalid(text: string): boolean {
+  const clean = text.trim().toLowerCase();
+  if (!clean) return true;
+  if (clean.length < 5) return true;
+  
+  // Non-alphabetic character ratio is too high (e.g. mashing symbols or numbers)
+  const lettersCount = (clean.match(/[a-z]/g) || []).length;
+  if (lettersCount < clean.length * 0.3) return true;
+
+  // Single character repetition (e.g., "aaaaaaaaa")
+  if (/^(.)\1{3,}$/.test(clean.replace(/\s+/g, ''))) return true;
+
+  // Repetitive patterns (e.g., "asdfasdfasdf")
+  if (clean.length >= 8) {
+    const half = clean.substring(0, clean.length / 2);
+    if (clean === half + half) return true;
+    const third = clean.substring(0, clean.length / 3);
+    if (clean === third + third + third) return true;
+  }
+
+  // Common skip/lazy words
+  const lazyWords = ["idk", "skip", "none", "nothing", "no idea", "asdf", "asdfgh", "qwer", "qwerty", "test", "hello", "hi", "placeholder"];
+  if (lazyWords.includes(clean)) return true;
+
+  // Consonants-only (excluding spaces)
+  if (/^[bcdfghjklmnpqrstvwxyz\s]{5,}$/.test(clean)) return true;
+
+  // Vowels-only (excluding spaces)
+  if (/^[aeiou\s]{5,}$/.test(clean)) return true;
+
+  return false;
+}
+
 export function generateFallbackIdealAnswer(question: string): string {
   const q = question.toLowerCase();
   
@@ -1005,7 +1022,7 @@ export function generateFallbackIdealAnswer(question: string): string {
     return "To solve this aptitude question, we carefully analyze the given conditions. We extract the relevant numbers, apply the appropriate mathematical formulas (e.g. profit/cost ratios, relative speed summation, or clock hand position differences), perform step-by-step arithmetic, and select the correct corresponding choice from the multiple-choice options.";
   }
 
-  return `To directly answer this question, a perfect solution involves applying modern software engineering patterns. We would implement modular components, configure automated testing, and use reliable industry-standard frameworks matching the domain technology to ensure speed, security, and robust scalability under high workloads.`;
+  return `To answer this question, focus on describing the exact technical configurations, tools, and operational workflows required for this scenario. Give a direct answer detailing how you would implement the solution in a production environment.`;
 }
 
 function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {

@@ -46,7 +46,7 @@ import {
 } from 'recharts';
 import ReactMarkdown from 'react-markdown';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, setDoc, where } from 'firebase/firestore';
-import { signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { db, auth, isFirebaseActive, handleFirestoreError, OperationType } from './lib/firebase';
 
 // Interfaces for State Management
@@ -175,6 +175,39 @@ const INITIAL_HISTORY: InterviewSessionRecord[] = [
   }
 ];
 
+function isGibberishOrInvalid(text: string): boolean {
+  const clean = text.trim().toLowerCase();
+  if (!clean) return true;
+  if (clean.length < 5) return true;
+  
+  // Non-alphabetic character ratio is too high (e.g. mashing symbols or numbers)
+  const lettersCount = (clean.match(/[a-z]/g) || []).length;
+  if (lettersCount < clean.length * 0.3) return true;
+
+  // Single character repetition (e.g., "aaaaaaaaa")
+  if (/^(.)\1{3,}$/.test(clean.replace(/\s+/g, ''))) return true;
+
+  // Repetitive patterns (e.g., "asdfasdfasdf")
+  if (clean.length >= 8) {
+    const half = clean.substring(0, clean.length / 2);
+    if (clean === half + half) return true;
+    const third = clean.substring(0, clean.length / 3);
+    if (clean === third + third + third) return true;
+  }
+
+  // Common skip/lazy words
+  const lazyWords = ["idk", "skip", "none", "nothing", "no idea", "asdf", "asdfgh", "qwer", "qwerty", "test", "hello", "hi", "placeholder"];
+  if (lazyWords.includes(clean)) return true;
+
+  // Consonants-only (excluding spaces)
+  if (/^[bcdfghjklmnpqrstvwxyz\s]{5,}$/.test(clean)) return true;
+
+  // Vowels-only (excluding spaces)
+  if (/^[aeiou\s]{5,}$/.test(clean)) return true;
+
+  return false;
+}
+
 function generateFallbackIdealAnswer(question: string): string {
   const q = question.toLowerCase();
   
@@ -214,7 +247,7 @@ function generateFallbackIdealAnswer(question: string): string {
     return "To answer this professionally, we use the STAR (Situation, Task, Action, Result) methodology. We describe a specific technical challenge in a lab or small project, explain our exact actions (debugging, researching, or testing), and highlight the measurable positive results, such as resolving a critical bug or completing a project before the deadline.";
   }
 
-  return `To directly answer this question, a perfect solution involves applying modern software engineering patterns. We would implement modular components, configure automated testing, and use reliable industry-standard frameworks matching the domain technology to ensure speed, security, and robust scalability under high workloads.`;
+  return `To answer this question, focus on describing the exact technical configurations, tools, and operational workflows required for this scenario. Give a direct answer detailing how you would implement the solution in a production environment.`;
 }
 
 export default function App() {
@@ -240,6 +273,7 @@ export default function App() {
   const [loginFormEmail, setLoginFormEmail] = useState<string>(() => localStorage.getItem('pw_user_email') || '');
   const [loginFormPassword, setLoginFormPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isForgotPassword, setIsForgotPassword] = useState<boolean>(false);
 
   const [streakCount, setStreakCount] = useState<number>(5);
 
@@ -370,13 +404,20 @@ export default function App() {
     // - Contain at least one number (0-9)
     // - No spaces allowed
     const password = loginFormPassword;
-    const hasMinLen = password.length >= 8;
-    const hasLetter = /[a-zA-Z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasNoSpace = !/\s/.test(password);
-
-    if (!hasMinLen || !hasLetter || !hasNumber || !hasNoSpace) {
-      showToast("Password must contain at least 8 characters, including both letters and numbers.", "error");
+    if (password.length < 8) {
+      showToast("Password must contain at least 8 characters.", "error");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(password)) {
+      showToast("Password must contain at least one letter.", "error");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      showToast("Password must contain at least one number.", "error");
+      return;
+    }
+    if (/\s/.test(password)) {
+      showToast("Password must not contain any spaces.", "error");
       return;
     }
 
@@ -398,8 +439,16 @@ export default function App() {
             fullName: finalName,
             createdAt: new Date().toISOString()
           });
+
+          // Send verification email to candidate
+          try {
+            await sendEmailVerification(userCredential.user);
+            showToast(`Profile created successfully! A verification email has been sent to ${finalEmail}.`, "success");
+          } catch (verifErr) {
+            console.warn("Could not dispatch email verification directly:", verifErr);
+            showToast(`Profile created successfully for ${finalName}!`, "success");
+          }
           
-          showToast(`Welcome! Account successfully created for ${finalName}.`, "success");
         } catch (authErr: any) {
           // If already in use, attempt logging in with the same email & password
           if (authErr.code === 'auth/email-already-in-use') {
@@ -438,6 +487,30 @@ export default function App() {
       setIsLoggedIn(true);
 
       showToast(`Welcome back, ${finalName}! Portal synchronized (Offline Mode).`, "success");
+    }
+  };
+
+  // Native Auth Form Forgot Password action
+  const handleForgotPasswordAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalEmail = loginFormEmail.trim();
+    if (!finalEmail) {
+      showToast("Please enter your email address first to reset password.", "error");
+      return;
+    }
+    if (isFirebaseActive && auth) {
+      try {
+        await sendPasswordResetEmail(auth, finalEmail);
+        showToast(`Password reset link successfully sent to ${finalEmail}! Check your inbox.`, "success");
+        setIsForgotPassword(false);
+      } catch (err: any) {
+        console.error("Password reset error: ", err);
+        const friendlyMessage = getFriendlyAuthErrorMessage(err.code || "");
+        showToast(friendlyMessage, "error");
+      }
+    } else {
+      showToast("Offline Mode: Simulated sending password reset link successfully.", "info");
+      setIsForgotPassword(false);
     }
   };
 
@@ -687,11 +760,11 @@ export default function App() {
   };
 
   // Next Question flow
-  const handleNextQuestion = async () => {
+  const handleNextQuestion = async (overrideAnswerText?: string) => {
     if (isEvaluatingAnswer) return; // Prevent duplicate submissions
     
     const currentQ = generatedQuestions[currentQuestionIndex];
-    const answerTextTrimmed = currentAnswerText.trim();
+    const answerTextTrimmed = overrideAnswerText !== undefined ? overrideAnswerText.trim() : currentAnswerText.trim();
 
     setIsEvaluatingAnswer(true);
     
@@ -729,19 +802,9 @@ export default function App() {
         };
       } else {
         const lowercaseAns = answerTextTrimmed.toLowerCase();
-        const isObviousGibberish = 
-          lowercaseAns.length < 15 && (
-            /^[a-z\s]{1,3}$/.test(lowercaseAns) || 
-            /^(.)\1+$/.test(lowercaseAns.replace(/\s+/g, '')) || 
-            /^[bcdfghjklmnpqrstvwxyz\s]+$/.test(lowercaseAns) || 
-            lowercaseAns === "asdf" ||
-            lowercaseAns === "asdfgh" ||
-            lowercaseAns === "ghg hhg" ||
-            lowercaseAns === "abc xyz" ||
-            lowercaseAns === "idk" ||
-            lowercaseAns === "skip" ||
-            lowercaseAns === "none"
-          );
+        
+        // Use programmatic gibberish checker helper
+        const isObviousGibberish = isGibberishOrInvalid(answerTextTrimmed);
 
         if (isObviousGibberish) {
           evalResult = {
@@ -790,31 +853,11 @@ export default function App() {
     }
   };
 
-  // Skip Question flow (scores exactly 0/10 with no Gemini API call)
-  const handleSkipQuestion = () => {
+  // Skip Question flow (requests dynamic model answer from backend)
+  const handleSkipQuestion = async () => {
     if (isEvaluatingAnswer) return;
-
-    const currentQ = generatedQuestions[currentQuestionIndex];
-    const newAnswer: AnswerInput = {
-      questionId: currentQ.id,
-      questionText: currentQ.text,
-      answerText: "[Skipped / No details provided]",
-      score: 0,
-      feedback: "No answer provided.",
-      improvements: "Please try drafting partial descriptions or troubleshooting paths to earn scores.",
-      idealAnswer: `For: "${currentQ.text}", a strong response outlines the core concept and details a real-world resolution step.`
-    };
-
-    const updatedAnswers = [...userAnswers, newAnswer];
-    setUserAnswers(updatedAnswers);
-    setCurrentAnswerText('');
-
-    if (currentQuestionIndex < generatedQuestions.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else {
-      compileOverallInterviewSession(updatedAnswers);
-    }
-    showToast("Question skipped. Scored as 0/10.", "info");
+    showToast("Skipping question... Generating model answer.", "info");
+    await handleNextQuestion("");
   };
 
   // Compile overall interview results based on individual question evaluations
@@ -1086,87 +1129,140 @@ export default function App() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(110,80,250,0.06),transparent_60%)] pointer-events-none" />
           
           <div className="w-full max-w-sm space-y-7 bg-[#0b0e14]/90 border border-zinc-900 rounded-[32px] p-6 md:p-8 shadow-2xl">
-            <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto">
-                <UserCheck className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-extrabold text-white tracking-tight">Create PrepWise Profile</h2>
-              <p className="text-xs text-zinc-400">Configure your target credentials. Gemini uses these metadata filters to custom-compile all interviews.</p>
-            </div>
+            {isForgotPassword ? (
+              <>
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto">
+                    <HelpCircle className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Reset Password</h2>
+                  <p className="text-xs text-zinc-400">Enter your email and we'll send you a secure link to reset your account password.</p>
+                </div>
 
-            <form onSubmit={handleSignUpLogin} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Candidate Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={loginFormName}
-                  onChange={(e) => setLoginFormName(e.target.value)}
-                  placeholder="e.g. James Manoj"
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
-                />
-              </div>
+                <form onSubmit={handleForgotPasswordAction} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Primary Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={loginFormEmail}
+                      onChange={(e) => setLoginFormEmail(e.target.value)}
+                      placeholder="e.g. developer@prepwise.ai"
+                      className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                    />
+                  </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Primary Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={loginFormEmail}
-                  onChange={(e) => setLoginFormEmail(e.target.value)}
-                  placeholder="e.g. developer@prepwise.ai"
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
-                />
-              </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-3 px-4 text-xs font-bold uppercase tracking-wider font-mono transition cursor-pointer flex items-center justify-center space-x-1.5"
+                  >
+                    <span>Send Reset Email</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">PASSWORD</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    required
-                    value={loginFormPassword}
-                    onChange={(e) => setLoginFormPassword(e.target.value)}
-                    placeholder="e.g. madhu3378"
-                    className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 pr-10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
-                  />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-white transition"
+                    onClick={() => setIsForgotPassword(false)}
+                    className="w-full bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 hover:text-white rounded-2xl py-3 px-4 text-xs font-bold transition flex items-center justify-center space-x-1"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <span>Back to Sign In</span>
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="text-center space-y-2">
+                  <div className="w-12 h-12 bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 rounded-2xl flex items-center justify-center mx-auto">
+                    <UserCheck className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-extrabold text-white tracking-tight">Create PrepWise Profile</h2>
+                  <p className="text-xs text-zinc-400">Configure your target credentials. Gemini uses these metadata filters to custom-compile all interviews.</p>
+                </div>
+
+                <form onSubmit={handleSignUpLogin} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Candidate Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={loginFormName}
+                      onChange={(e) => setLoginFormName(e.target.value)}
+                      placeholder="e.g. James Manoj"
+                      className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Primary Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={loginFormEmail}
+                      onChange={(e) => setLoginFormEmail(e.target.value)}
+                      placeholder="e.g. developer@prepwise.ai"
+                      className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">PASSWORD</label>
+                      <button
+                        type="button"
+                        onClick={() => setIsForgotPassword(true)}
+                        className="text-[10px] text-indigo-400 hover:text-indigo-300 font-sans font-semibold transition"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        value={loginFormPassword}
+                        onChange={(e) => setLoginFormPassword(e.target.value)}
+                        placeholder="e.g. madhu3378"
+                        className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 pr-10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-white transition"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-3 px-4 text-xs font-bold uppercase tracking-wider font-mono transition cursor-pointer flex items-center justify-center space-x-1.5"
+                  >
+                    <span>Launch App Workspace</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </form>
+
+                <div className="text-center pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserName("James Jane");
+                      setUserGoal("Lead Product Developer");
+                      setUserEmail("guest.user@prepwise-sim.ai");
+                      localStorage.setItem('pw_user_name', "James Jane");
+                      localStorage.setItem('pw_user_goal', "Lead Product Developer");
+                      localStorage.setItem('pw_is_logged_in', 'true');
+                      setIsLoggedIn(true);
+                      showToast("Authenticated anonymously as Guest", "info");
+                    }}
+                    className="text-[10.5px] text-zinc-500 hover:text-indigo-400 transition"
+                  >
+                    Skip authentication and enter as guest
                   </button>
                 </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl py-3 px-4 text-xs font-bold uppercase tracking-wider font-mono transition cursor-pointer flex items-center justify-center space-x-1.5"
-              >
-                <span>Launch App Workspace</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </form>
-
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setUserName("James Jane");
-                  setUserGoal("Lead Product Developer");
-                  setUserEmail("guest.user@prepwise-sim.ai");
-                  localStorage.setItem('pw_user_name', "James Jane");
-                  localStorage.setItem('pw_user_goal', "Lead Product Developer");
-                  localStorage.setItem('pw_is_logged_in', 'true');
-                  setIsLoggedIn(true);
-                  showToast("Authenticated anonymously as Guest", "info");
-                }}
-                className="text-[10.5px] text-zinc-500 hover:text-indigo-400 transition"
-              >
-                Skip authentication and enter as guest
-              </button>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1626,7 +1722,7 @@ export default function App() {
                         </button>
 
                         <button
-                          onClick={handleNextQuestion}
+                          onClick={() => handleNextQuestion()}
                           disabled={isEvaluatingAnswer}
                           className="col-span-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl py-3 px-4 text-xs font-extrabold cursor-pointer transition flex items-center justify-center space-x-2 disabled:opacity-70"
                         >

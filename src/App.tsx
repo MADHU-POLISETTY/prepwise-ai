@@ -742,24 +742,17 @@ export default function App() {
         }
       }
 
-      const res = await fetch("/api/generate-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domain: actualDomain,
-          difficulty: mockDifficulty,
-          numQuestions: mockNumQuestions,
-          role: mockRole,
-          company: mockCompany,
-          customTopic: mockFocusTopic,
-          previousQuestions: pastQuestionTexts,
-          questionMode: questionMode,
-          pinnedQuestions: pinnedQuestions
-        })
-      });
+      const selectedDomain = actualDomain;
+      const customTopic = mockFocusTopic;
+
+      console.log("Fetching questions...");
+      const res = await fetch(`/api/question-bank?domain=${encodeURIComponent(selectedDomain)}&customTopic=${encodeURIComponent(customTopic)}`);
 
       if (!res.ok) throw new Error("Could not download customized questions list");
-      const list: InterviewQuestion[] = await res.json();
+      const data = await res.json();
+      console.log("Questions received:", data);
+
+      const list: InterviewQuestion[] = data.questions || [];
 
       // Store newly generated questions in Firestore
       if (isFirebaseActive && db) {
@@ -786,21 +779,8 @@ export default function App() {
       showToast("Questions compiled successfully!", "success");
     } catch (err) {
       console.error(err);
-      // Fallback
-      const fallbackQuestions = [
-        { id: 1, text: `As a ${mockRole} focusing on ${actualDomain}, how do you evaluate and optimize technical system bottlenecks at ${mockCompany}?` },
-        { id: 2, text: `Describe a scenario in ${actualDomain} where production components failed or security permissions broke. How did you coordinate the response?` },
-        { id: 3, text: `What architectural patterns or toolsets do you choose for a highly available, scalable ${actualDomain} system at ${mockCompany}?` },
-        { id: 4, text: `How do you convey complex high-stakes ${actualDomain} refactoring or modernization projects to non-technical business stakeholders?` },
-        { id: 5, text: `Explain your strategy for maintaining high standards, engineering rigor, and continuous deployment for ${actualDomain} under tight timelines.` }
-      ].slice(0, mockNumQuestions);
-
-      setGeneratedQuestions(fallbackQuestions);
-      setCurrentQuestionIndex(0);
-      setUserAnswers([]);
-      setCurrentAnswerText('');
-      setInterviewStep('active_question');
-      showToast("Questions compiled (Simulation Mode)", "info");
+      setInterviewStep('setup');
+      showToast("Failed to load questions. Please try again.", "error");
     }
   };
 

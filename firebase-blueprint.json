@@ -27,62 +27,62 @@
     },
     "Interview": {
       "title": "Interview",
-      "description": "An interview practice session records, containing dynamic questions, user answers, detailed AI score metrics, and structured textual feedback.",
+      "description": "An interview practice session record, containing dynamic questions, user answers, detailed AI score metrics, and structured textual feedback.",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Firestore document ID of the interview record"
-        },
-        "userId": {
+        "uid": {
           "type": "string",
           "description": "The authentication UID of the user who completed the interview"
         },
         "category": {
           "type": "string",
-          "enum": ["HR", "Technical", "Aptitude"],
           "description": "The context/type of the interview practice session"
         },
-        "answers": {
-          "type": "array",
-          "description": "A list of structured question-and-answer pairs provided during the interview"
+        "role": {
+          "type": "string",
+          "description": "The targeted job role"
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "The difficulty level"
+        },
+        "company": {
+          "type": "string",
+          "description": "The targeted company focus"
         },
         "score": {
           "type": "integer",
           "description": "The primary overall weighted performance score out of 100"
         },
-        "communicationScore": {
-          "type": "integer",
-          "description": "AI-evaluated score out of 100 on verbal clarity, phrasing, and response speed guidelines"
-        },
-        "technicalScore": {
-          "type": "integer",
-          "description": "AI-evaluated score out of 100 on domain logic correctness, problem solving, or accuracy"
-        },
-        "confidenceScore": {
-          "type": "integer",
-          "description": "AI-evaluated score out of 100 based on grammatical assertiveness, lack of filler phrases/hesitations"
-        },
         "feedback": {
           "type": "string",
           "description": "Exhaustive personalized markdown feedback with key strengths and developmental instructions"
         },
-        "completedAt": {
+        "createdAt": {
           "type": "string",
           "format": "date-time",
-          "description": "ISO timestamp for when the interview answers were reviewed and categorized"
+          "description": "ISO timestamp for when the interview was completed"
+        },
+        "questions": {
+          "type": "array",
+          "description": "A list of structured question-and-answer pairs provided during the interview"
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Detailed AI score metrics"
         }
       },
       "required": [
-        "userId",
+        "uid",
         "category",
-        "answers",
+        "role",
+        "difficulty",
+        "company",
         "score",
-        "communicationScore",
-        "technicalScore",
-        "confidenceScore",
         "feedback",
-        "completedAt"
+        "createdAt",
+        "questions",
+        "metrics"
       ]
     },
     "Question": {

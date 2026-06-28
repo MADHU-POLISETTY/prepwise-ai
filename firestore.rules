@@ -40,10 +40,10 @@ service cloud.firestore {
 
     // Interviews Collection
     match /interviews/{interviewId} {
-      allow get: if isSignedIn() && existing().userId == request.auth.uid;
-      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidInterview(request.resource.data);
-      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+      allow get: if isSignedIn() && existing().uid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid && isValidInterview(request.resource.data);
+      allow delete: if isSignedIn() && existing().uid == request.auth.uid;
       allow update: if false; // Interviews are immutable once submitted
     }
 
@@ -72,22 +72,30 @@ service cloud.firestore {
     }
 
     function isValidInterview(data) {
-      return data.userId == request.auth.uid
+      return data.uid == request.auth.uid
           && data.category is string
-          && (data.category == 'HR' || data.category == 'Technical' || data.category == 'Aptitude')
-          && data.answers is list
-          && data.answers.size() <= 50
+          && data.category.size() <= 200
+          && data.role is string
+          && data.role.size() <= 200
+          && data.difficulty is string
+          && data.difficulty.size() <= 100
+          && data.company is string
+          && data.company.size() <= 100
           && data.score is number
           && data.score >= 0 && data.score <= 100
-          && data.communicationScore is number
-          && data.communicationScore >= 0 && data.communicationScore <= 100
-          && data.technicalScore is number
-          && data.technicalScore >= 0 && data.technicalScore <= 100
-          && data.confidenceScore is number
-          && data.confidenceScore >= 0 && data.confidenceScore <= 100
           && data.feedback is string
           && data.feedback.size() <= 100000
-          && data.completedAt is string;
+          && data.createdAt is string
+          && data.questions is list
+          && data.questions.size() <= 50
+          && data.metrics is map
+          && data.metrics.communication is number
+          && data.metrics.technical is number
+          && data.metrics.confidence is number
+          && data.metrics.problemSolving is number
+          && data.metrics.clarity is number
+          && data.keys().hasAll(['category', 'role', 'difficulty', 'company', 'score', 'metrics', 'feedback', 'questions', 'createdAt', 'uid'])
+          && data.keys().size() == 10;
     }
   }
 }

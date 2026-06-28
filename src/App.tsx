@@ -34,7 +34,10 @@ import {
   Sliders,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Pin,
+  Search,
+  Database
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -320,6 +323,45 @@ export default function App() {
   const [isDictatingSimulated, setIsDictatingSimulated] = useState<boolean>(false);
   const [isEvaluatingAnswer, setIsEvaluatingAnswer] = useState<boolean>(false);
 
+  // Hybrid Question Bank State Extensions
+  const [questionMode, setQuestionMode] = useState<'ai' | 'bank' | 'hybrid'>('hybrid');
+  const [pinnedQuestions, setPinnedQuestions] = useState<string[]>([]);
+  const [bankQuestions, setBankQuestions] = useState<string[]>([]);
+  const [bankLoading, setBankLoading] = useState<boolean>(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState<string>('');
+
+  // Fetch question bank questions for the currently selected domain
+  useEffect(() => {
+    const fetchBankQuestions = async () => {
+      setBankLoading(true);
+      try {
+        const actualDomain = mockDomain === 'Custom' ? customDomainText : mockDomain;
+        if (!actualDomain) {
+          setBankQuestions([]);
+          return;
+        }
+        const res = await fetch(`/api/question-bank?domain=${encodeURIComponent(actualDomain)}&customTopic=${encodeURIComponent(mockFocusTopic)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBankQuestions(data.questions.map((q: any) => q.text) || []);
+        } else {
+          setBankQuestions([]);
+        }
+      } catch (err) {
+        console.error("Error fetching question bank:", err);
+        setBankQuestions([]);
+      } finally {
+        setBankLoading(false);
+      }
+    };
+    fetchBankQuestions();
+  }, [mockDomain, customDomainText, mockFocusTopic]);
+
+  // Clear pinned questions on domain changes to preserve isolation
+  useEffect(() => {
+    setPinnedQuestions([]);
+  }, [mockDomain, customDomainText, mockFocusTopic]);
+
   // Interactive Screen 3: Resume Scan states
   const [resumeText, setResumeText] = useState<string>(() => localStorage.getItem('pw_resume_text') || '');
   const [targetJobDesc, setTargetJobDesc] = useState<string>(() => localStorage.getItem('pw_resume_target_jd') || '');
@@ -542,10 +584,11 @@ export default function App() {
   const loadHistoryFromCloud = async () => {
     if (!isFirebaseActive || !db || !auth?.currentUser) return;
     try {
-      const colRef = collection(db, "interviews");
-      // Since security rules might restrict queries or require index setup,
-      // load all entries safely.
-      const snapshot = await getDocs(colRef);
+      const q = query(
+        collection(db, "interviews"),
+        where("uid", "==", auth.currentUser.uid)
+      );
+      const snapshot = await getDocs(q);
       const items: InterviewSessionRecord[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -709,7 +752,9 @@ export default function App() {
           role: mockRole,
           company: mockCompany,
           customTopic: mockFocusTopic,
-          previousQuestions: pastQuestionTexts
+          previousQuestions: pastQuestionTexts,
+          questionMode: questionMode,
+          pinnedQuestions: pinnedQuestions
         })
       });
 
@@ -1603,6 +1648,136 @@ export default function App() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Question Generation Mode Selector */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-mono uppercase text-zinc-400 block font-bold">Question Source Architecture</label>
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {[
+                              { id: 'bank', name: 'Curated Bank', desc: 'Secure repository' },
+                              { id: 'ai', name: 'Dynamic AI', desc: 'Custom Gemini scenario' },
+                              { id: 'hybrid', name: 'Hybrid Mix', desc: 'Curated + dynamic AI' }
+                            ].map((mode) => {
+                              const active = questionMode === mode.id;
+                              return (
+                                <button
+                                  key={mode.id}
+                                  type="button"
+                                  onClick={() => setQuestionMode(mode.id as any)}
+                                  className={`p-2.5 rounded-2xl text-left border cursor-pointer transition-all flex flex-col justify-between h-[68px] ${
+                                    active
+                                      ? 'bg-indigo-650/10 border-indigo-500 shadow-md ring-1 ring-indigo-500'
+                                      : 'bg-zinc-900 border-zinc-850 text-zinc-400 hover:bg-zinc-850'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-center w-full">
+                                    <span className={`text-[10.5px] font-bold ${active ? 'text-indigo-300' : 'text-zinc-300'}`}>
+                                      {mode.name}
+                                    </span>
+                                    {active && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />}
+                                  </div>
+                                  <span className="text-[8.5px] text-zinc-500 leading-tight block line-clamp-2">
+                                    {mode.desc}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Interactive Curated Question Bank Explorer */}
+                        {(questionMode === 'bank' || questionMode === 'hybrid') && (
+                          <div className="bg-zinc-900/50 border border-zinc-850 rounded-2xl p-3.5 space-y-3 mt-1.5">
+                            <div className="flex justify-between items-center">
+                              <div className="space-y-0.5">
+                                <h4 className="text-[11.5px] font-bold text-white flex items-center space-x-1.5">
+                                  <Database className="w-3.5 h-3.5 text-indigo-400" />
+                                  <span>Curated Database Explorer</span>
+                                </h4>
+                                <p className="text-[9.5px] text-zinc-400">
+                                  Select/Pin custom questions to include them in your session.
+                                </p>
+                              </div>
+                              <span className="text-[9px] font-mono bg-zinc-850 text-indigo-400 px-2 py-0.5 rounded-full font-bold">
+                                {pinnedQuestions.length} / {mockNumQuestions} Pinned
+                              </span>
+                            </div>
+
+                            {/* Search bar for questions */}
+                            <div className="relative">
+                              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-500" />
+                              <input
+                                type="text"
+                                value={bankSearchQuery}
+                                onChange={(e) => setBankSearchQuery(e.target.value)}
+                                placeholder="Search verified questions..."
+                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-1.5 pl-8 pr-3 text-[10.5px] text-white focus:outline-none focus:border-indigo-500"
+                              />
+                            </div>
+
+                            {/* Question List container */}
+                            <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                              {bankLoading ? (
+                                <div className="text-center py-6 text-zinc-550 text-[10px] font-mono flex items-center justify-center space-x-2">
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  <span>Syncing question vault...</span>
+                                </div>
+                              ) : bankQuestions.length === 0 ? (
+                                <div className="text-center py-6 text-zinc-500 text-[10.5px]">
+                                  No curated questions in vault for this topic. Define custom topic or search details.
+                                </div>
+                              ) : (
+                                bankQuestions
+                                  .filter(text => text.toLowerCase().includes(bankSearchQuery.toLowerCase()))
+                                  .map((qText, idx) => {
+                                    const isPinned = pinnedQuestions.includes(qText);
+                                    return (
+                                      <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => {
+                                          if (isPinned) {
+                                            setPinnedQuestions(prev => prev.filter(item => item !== qText));
+                                          } else {
+                                            if (pinnedQuestions.length >= mockNumQuestions) {
+                                              // Auto-increase the total count if they pin more questions than requested
+                                              setMockNumQuestions(pinnedQuestions.length + 1);
+                                            }
+                                            setPinnedQuestions(prev => [...prev, qText]);
+                                          }
+                                        }}
+                                        className={`w-full p-2.5 rounded-xl border text-left text-[10.5px] transition-all cursor-pointer flex items-start space-x-2.5 ${
+                                          isPinned
+                                            ? 'bg-indigo-650/10 border-indigo-500/80 text-white shadow-sm'
+                                            : 'bg-zinc-900 border-zinc-850 hover:border-zinc-700 text-zinc-300'
+                                        }`}
+                                      >
+                                        <div className="mt-0.5 shrink-0">
+                                          {isPinned ? (
+                                            <div className="w-3.5 h-3.5 rounded bg-indigo-500 flex items-center justify-center text-white">
+                                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                            </div>
+                                          ) : (
+                                            <div className="w-3.5 h-3.5 rounded border border-zinc-700 bg-zinc-950 flex items-center justify-center text-transparent hover:border-indigo-500">
+                                              <Pin className="w-2 h-2" />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex-1 space-y-0.5">
+                                          <p className="leading-relaxed font-sans">{qText}</p>
+                                          {isPinned && (
+                                            <span className="inline-flex items-center text-[8px] font-mono font-bold text-indigo-400 tracking-wider uppercase">
+                                              Pinned for Session
+                                            </span>
+                                          )}
+                                        </div>
+                                      </button>
+                                    );
+                                  })
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {/* Optional Topic details */}
                         <div>

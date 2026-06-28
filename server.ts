@@ -96,7 +96,9 @@ app.post("/api/generate-questions", async (req, res) => {
     role = "Software Engineer", 
     company = "Standard", 
     customTopic = "",
-    previousQuestions = []
+    previousQuestions = [],
+    questionMode = "hybrid", // "ai" | "bank" | "hybrid"
+    pinnedQuestions = [] // Specific question texts selected by the user to be included
   } = req.body;
 
   // Align domain and category
@@ -260,14 +262,45 @@ Generate questions strictly from this category and do not include or mix other u
   }
 
   const client = getGeminiClient();
-  if (!client) {
-    // Generate intelligent simulation fallback
-    return res.json(getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions));
+
+  // Helper function to build local fallback / bank questions
+  const getBankQuestionsWithPinned = (): { id: number; text: string }[] => {
+    const list: string[] = [...pinnedQuestions];
+    if (list.length < numQuestions) {
+      const remainingNeeded = numQuestions - list.length;
+      // Fetch dynamic questions from the mock pool
+      const poolSimulated = getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions + 10);
+      for (const simQ of poolSimulated) {
+        if (list.length >= numQuestions) break;
+        const alreadyInList = list.some(item => item.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+        const inPrevious = previousQuestions.some((pq: string) => pq.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+        if (!alreadyInList && !inPrevious) {
+          list.push(simQ.text);
+        }
+      }
+    }
+    // If we still need more, append default safe ones
+    while (list.length < numQuestions) {
+      list.push(`As a ${role} focusing on ${selectedDomain}, how do you ensure scalability and quality under tight deadlines?`);
+    }
+    return list.slice(0, numQuestions).map((text, idx) => ({ id: idx + 1, text }));
+  };
+
+  // 1. BANK ONLY MODE
+  if (questionMode === "bank" || !client) {
+    return res.json(getBankQuestionsWithPinned());
   }
 
-  try {
-    const seed = Math.random().toString(36).substring(7);
-    const prompt = `Generate a set of exactly ${numQuestions} distinct, highly professional and challenging interview questions for a ${difficulty} level interview.
+  // 2. AI ONLY MODE
+  if (questionMode === "ai") {
+    try {
+      const aiCount = numQuestions - pinnedQuestions.length;
+      if (aiCount <= 0) {
+        return res.json(pinnedQuestions.slice(0, numQuestions).map((text: string, idx: number) => ({ id: idx + 1, text })));
+      }
+
+      const seed = Math.random().toString(36).substring(7);
+      const prompt = `Generate a set of exactly ${aiCount} distinct, highly professional and challenging interview questions for a ${difficulty} level interview.
 Target Domain/Technology: ${selectedDomain}
 Target Career/Role: ${role}
 Target Company Focus: ${company}
@@ -276,28 +309,120 @@ Domain Scope Rules:
 ${domainScope}
 
 Constraints:
-- Generate EXACTLY ${numQuestions} questions.
+- Generate EXACTLY ${aiCount} questions.
 - Tailor the questions strictly to the selected Domain, Difficulty level (${difficulty}), and Role.
 - Ensure the questions are highly distinct, practical, and test genuine real-world capabilities.
 - DO NOT MIX domains. A Java question must not talk about DevOps. An Aptitude question must not talk about AWS/System Design.
 - Use a diverse set of topics from the allowed list. Do not repeat the same concepts.
 - Random session seed: ${seed} (Use this to vary your selections and generate completely different questions from previous requests).
 ${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following previous questions:\n${previousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
+${pinnedQuestions && pinnedQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following questions already selected in this session:\n${pinnedQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
+`;
+
+      const response = await client.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: "You are an elite, highly experienced technical recruiter and career coach. Your goal is to draft targeted interview puzzles that test genuine skill and cultural alignment. You strictly enforce domain boundaries and never mix unrelated topics.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.INTEGER, description: "Question sequence index starting from 1" },
+                text: { type: Type.STRING, description: "The content of the interview question" }
+              },
+              required: ["id", "text"]
+            }
+          }
+        }
+      });
+
+      const bodyText = response.text;
+      if (!bodyText) {
+        throw new Error("Empty response from AI engine");
+      }
+
+      const aiQuestions = parseCleanJSON(bodyText);
+      const combined = [
+        ...pinnedQuestions.map((text: string) => ({ text })),
+        ...aiQuestions
+      ];
+
+      // Re-map index sequence
+      const finalQuestions = combined.slice(0, numQuestions).map((q, index) => ({
+        id: index + 1,
+        text: q.text
+      }));
+
+      return res.json(finalQuestions);
+    } catch (err: any) {
+      console.error("Gemini AI-Only generation failed, falling back to bank:", err);
+      return res.json(getBankQuestionsWithPinned());
+    }
+  }
+
+  // 3. HYBRID MODE (Smart Mix of Curated and Dynamic AI)
+  try {
+    const bankCount = Math.ceil(numQuestions / 2);
+    const aiCount = numQuestions - bankCount;
+
+    // A. Gather Curated Questions
+    const curatedList: string[] = [...pinnedQuestions];
+    if (curatedList.length < bankCount) {
+      const poolSimulated = getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, bankCount + 10);
+      for (const simQ of poolSimulated) {
+        if (curatedList.length >= bankCount) break;
+        const alreadyInList = curatedList.some(item => item.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+        const inPrevious = previousQuestions.some((pq: string) => pq.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+        if (!alreadyInList && !inPrevious) {
+          curatedList.push(simQ.text);
+        }
+      }
+    }
+
+    const finalCurated = curatedList.slice(0, bankCount);
+
+    if (aiCount <= 0) {
+      return res.json(finalCurated.map((text, idx) => ({ id: idx + 1, text })));
+    }
+
+    // B. Generate remaining questions with AI
+    const seed = Math.random().toString(36).substring(7);
+    const prompt = `We have retrieved ${finalCurated.length} premium, curated questions from our secure question bank:
+${finalCurated.map((q, i) => `${i + 1}. ${q}`).join("\n")}
+
+Generate exactly ${aiCount} additional distinct, highly personalized and complementary questions that are NOT redundant or repetitive.
+Target Domain/Technology: ${selectedDomain}
+Target Career/Role: ${role}
+Target Company Focus: ${company}
+Target Difficulty: ${difficulty}
+
+Domain Scope Rules:
+${domainScope}
+
+Constraints:
+- Generate EXACTLY ${aiCount} questions in JSON format.
+- Ensure they complement and build upon the curated questions above without repeating topics.
+- Tailor strictly to the ${difficulty} difficulty level for a ${role} position.
+- Random session seed: ${seed}
+${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT repeat any of the following previous questions:\n${previousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
 `;
 
     const response = await client.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
-        systemInstruction: "You are an elite, highly experienced technical recruiter and career coach. Your goal is to draft targeted interview puzzles that test genuine skill and cultural alignment. You strictly enforce domain boundaries and never mix unrelated topics.",
+        systemInstruction: "You are an elite technical recruiter. You are tasked with generating unique complementary questions to go with existing curated questions. Avoid any duplicate concepts.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
           items: {
             type: Type.OBJECT,
             properties: {
-              id: { type: Type.INTEGER, description: "Question sequence index starting from 1" },
-              text: { type: Type.STRING, description: "The content of the interview question" }
+              id: { type: Type.INTEGER },
+              text: { type: Type.STRING }
             },
             required: ["id", "text"]
           }
@@ -310,13 +435,35 @@ ${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT genera
       throw new Error("Empty response from AI engine");
     }
 
-    const questionsList = parseCleanJSON(bodyText);
-    res.json(questionsList);
+    const aiQuestions = parseCleanJSON(bodyText);
+    const combined = [
+      ...finalCurated.map((text) => ({ text })),
+      ...aiQuestions
+    ];
+
+    const finalQuestions = combined.slice(0, numQuestions).map((q, index) => ({
+      id: index + 1,
+      text: q.text
+    }));
+
+    res.json(finalQuestions);
   } catch (err: any) {
-    console.error("Gemini Question Generation failed:", err);
-    // Serve fallback silently
-    res.json(getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions));
+    console.error("Gemini Hybrid generation failed, falling back to full bank:", err);
+    res.json(getBankQuestionsWithPinned());
   }
+});
+
+// Expose Question Bank Endpoint
+app.get("/api/question-bank", (req, res) => {
+  const { domain, customTopic } = req.query;
+  const actualDomain = (domain as string) || "Technical";
+  const actualCustomTopic = (customTopic as string) || "";
+  
+  const pool = getQuestionBankPool(actualDomain, "Software Engineer", "Medium", "Standard", actualCustomTopic);
+  res.json({
+    domain: actualDomain,
+    questions: pool.map((text, idx) => ({ id: idx + 1, text }))
+  });
 });
 
 // 2.5. AI-Based Single Answer Evaluation
@@ -697,11 +844,11 @@ app.post("/api/ask-ms", async (req, res) => {
   const { messages = [] } = req.body;
 
   const client = getGeminiClient();
+  const lastUserMsg = messages[messages.length - 1]?.text || "";
+
   if (!client) {
-    console.error("Ask MS AI endpoint failed: Gemini API key is missing or invalid in environment.");
-    return res.status(500).json({ 
-      error: "Gemini API Client is not configured. Please ensure your GEMINI_API_KEY is configured correctly in Settings > Secrets." 
-    });
+    console.warn("Ask MS AI endpoint: Gemini client missing, using local simulated chat assistant.");
+    return res.json({ text: getSimulatedAskMS(lastUserMsg) });
   }
 
   try {
@@ -725,8 +872,8 @@ app.post("/api/ask-ms", async (req, res) => {
 
     res.json({ text: replyText });
   } catch (err: any) {
-    console.error("Ask MS AI endpoint failed:", err);
-    res.status(500).json({ error: err?.message || String(err) });
+    console.warn("Ask MS AI endpoint failed, falling back to simulated chat assistant:", err);
+    res.json({ text: getSimulatedAskMS(lastUserMsg) });
   }
 });
 
@@ -786,11 +933,10 @@ How can I help you accelerate your interview readiness today?
 Specify a topic, and let's craft your high-impact technical portfolio.`;
 }
 
-export function getSimulatedQuestions(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = "", numQuestions: number = 5) {
+export function getQuestionBankPool(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = ""): string[] {
   const domain = (categoryOrDomain || "Technical").toLowerCase();
   const searchStr = `${domain} ${role} ${customTopic} ${company}`.toLowerCase();
   
-  // Base lists of questions per domain/category
   let pool: string[] = [];
   
   if (searchStr.includes("java")) {
@@ -903,7 +1049,6 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
       `How do you achieve high availability and eliminate single points of failure in cloud-native applications?`
     ];
   } else if (customTopic) {
-    // Custom Topic
     pool = [
       `Explain the core concepts and principles of ${customTopic} that every software developer should know.`,
       `What are the common industry best practices and standards when implementing solutions using ${customTopic}?`,
@@ -912,7 +1057,6 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
       `Compare ${customTopic} with its main alternatives. What are the key trade-offs in performance and ease of use?`
     ];
   } else {
-    // Default generic technical
     pool = [
       `Explain the core conceptual differences between SQL and NoSQL storage paradigms, and when to use them.`,
       `How do you secure server-side REST API endpoints from potential security threats and unauthorized access?`,
@@ -921,16 +1065,24 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
       `Describe the lifecycle of an asynchronous execution queue, and how to deal with failures and retries.`
     ];
   }
- 
+
+  return pool;
+}
+
+export function getSimulatedQuestions(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = "", numQuestions: number = 5) {
+  const domain = (categoryOrDomain || "Technical").toLowerCase();
+  const searchStr = `${domain} ${role} ${customTopic} ${company}`.toLowerCase();
+  
+  let pool = getQuestionBankPool(categoryOrDomain, role, difficulty, company, customTopic);
+  
   // Shuffle pool to ensure variety and uniqueness
-  pool = pool.sort(() => Math.random() - 0.5);
- 
+  pool = [...pool].sort(() => Math.random() - 0.5);
+  
   // Take the required number of questions, up to pool size
   const selectedQuestions = pool.slice(0, numQuestions);
- 
+  
   // If pool didn't have enough, fill with domain-safe questions
   while (selectedQuestions.length < numQuestions) {
-    const nextIdx = selectedQuestions.length + 1;
     if (searchStr.includes("aptitude")) {
       selectedQuestions.push(`Solve this problem: If 3 books cost $15, how much do 6 books cost?\nA) $20\nB) $25\nC) $30\nD) $35`);
     } else if (searchStr.includes("hr") || searchStr.includes("behavioral")) {
@@ -939,7 +1091,7 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
       selectedQuestions.push(`As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`);
     }
   }
- 
+  
   return selectedQuestions.map((text, index) => ({
     id: index + 1,
     text: text

@@ -13,13 +13,17 @@
           "type": "string",
           "description": "The user's email address"
         },
+        "fullName": {
+          "type": "string",
+          "description": "The user's candidate full name"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "ISO timestamp for when the user account was initialized"
         }
       },
-      "required": ["uid", "email", "createdAt"]
+      "required": ["uid", "email", "fullName", "createdAt"]
     },
     "Interview": {
       "title": "Interview",

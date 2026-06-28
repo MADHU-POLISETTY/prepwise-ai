@@ -32,7 +32,9 @@ import {
   MessageCircle,
   TrendingUp,
   Sliders,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -44,7 +46,7 @@ import {
 } from 'recharts';
 import ReactMarkdown from 'react-markdown';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, setDoc, where } from 'firebase/firestore';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { db, auth, isFirebaseActive, handleFirestoreError, OperationType } from './lib/firebase';
 
 // Interfaces for State Management
@@ -194,7 +196,8 @@ export default function App() {
   // Login Form input bindings
   const [loginFormName, setLoginFormName] = useState<string>(() => localStorage.getItem('pw_user_name') || '');
   const [loginFormEmail, setLoginFormEmail] = useState<string>(() => localStorage.getItem('pw_user_email') || '');
-  const [loginFormGoal, setLoginFormGoal] = useState<string>(() => localStorage.getItem('pw_user_goal') || '');
+  const [loginFormPassword, setLoginFormPassword] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const [streakCount, setStreakCount] = useState<number>(5);
 
@@ -284,27 +287,86 @@ export default function App() {
   }, []);
 
   // Native Auth Form Submission Action
-  const handleSignUpLogin = (e: React.FormEvent) => {
+  const handleSignUpLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!loginFormName.trim()) {
       showToast("Please enter your name", "error");
       return;
     }
+    if (!loginFormEmail.trim()) {
+      showToast("Please enter your email", "error");
+      return;
+    }
+
+    // Password validation rules:
+    // - Contain at least 8 characters
+    // - Contain at least one letter (A-Z or a-z)
+    // - Contain at least one number (0-9)
+    // - No spaces allowed
+    const password = loginFormPassword;
+    const hasMinLen = password.length >= 8;
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasNoSpace = !/\s/.test(password);
+
+    if (!hasMinLen || !hasLetter || !hasNumber || !hasNoSpace) {
+      showToast("Password must contain at least 8 characters, including both letters and numbers.", "error");
+      return;
+    }
+
     const finalName = loginFormName.trim();
-    const finalEmail = loginFormEmail.trim() || 'candidate.anon@prepwise.ai';
-    const finalGoal = loginFormGoal.trim() || 'Software Engineer';
+    const finalEmail = loginFormEmail.trim();
 
-    setUserName(finalName);
-    setUserEmail(finalEmail);
-    setUserGoal(finalGoal);
+    if (isFirebaseActive && auth && db) {
+      try {
+        let userCredential;
+        try {
+          // Attempt user signup
+          userCredential = await createUserWithEmailAndPassword(auth, finalEmail, password);
+          
+          // Store only: Full Name, Email, User ID (UID), Created Timestamp in Firestore "users" collection
+          const userDocRef = doc(db, "users", userCredential.user.uid);
+          await setDoc(userDocRef, {
+            uid: userCredential.user.uid,
+            email: finalEmail,
+            fullName: finalName,
+            createdAt: new Date().toISOString()
+          });
+          
+          showToast(`Welcome! Account successfully created for ${finalName}.`, "success");
+        } catch (authErr: any) {
+          // If already in use, attempt logging in with the same email & password
+          if (authErr.code === 'auth/email-already-in-use') {
+            userCredential = await signInWithEmailAndPassword(auth, finalEmail, password);
+            showToast(`Welcome back, ${finalName}! Profile synchronized.`, "success");
+          } else {
+            throw authErr;
+          }
+        }
 
-    localStorage.setItem('pw_user_name', finalName);
-    localStorage.setItem('pw_user_email', finalEmail);
-    localStorage.setItem('pw_user_goal', finalGoal);
-    localStorage.setItem('pw_is_logged_in', 'true');
-    setIsLoggedIn(true);
+        setUserName(finalName);
+        setUserEmail(finalEmail);
 
-    showToast(`Welcome back, ${finalName}! Portal synchronized.`, "success");
+        localStorage.setItem('pw_user_name', finalName);
+        localStorage.setItem('pw_user_email', finalEmail);
+        localStorage.setItem('pw_is_logged_in', 'true');
+        setIsLoggedIn(true);
+      } catch (err: any) {
+        console.error("Authentication Error: ", err);
+        showToast(err.message || "Authentication failed. Please verify credentials.", "error");
+      }
+    } else {
+      // Offline fallback mode
+      setUserName(finalName);
+      setUserEmail(finalEmail);
+
+      localStorage.setItem('pw_user_name', finalName);
+      localStorage.setItem('pw_user_email', finalEmail);
+      localStorage.setItem('pw_is_logged_in', 'true');
+      setIsLoggedIn(true);
+
+      showToast(`Welcome back, ${finalName}! Portal synchronized (Offline Mode).`, "success");
+    }
   };
 
   // Sign out handler from Profile page
@@ -974,26 +1036,36 @@ export default function App() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Target Job Title Focus</label>
-                <input
-                  type="text"
-                  required
-                  value={loginFormGoal}
-                  onChange={(e) => setLoginFormGoal(e.target.value)}
-                  placeholder="e.g. Senior Backend Architect"
-                  className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Primary Email address</label>
+                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">Primary Email Address</label>
                 <input
                   type="email"
+                  required
                   value={loginFormEmail}
                   onChange={(e) => setLoginFormEmail(e.target.value)}
                   placeholder="e.g. developer@prepwise.ai"
                   className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">PASSWORD</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={loginFormPassword}
+                    onChange={(e) => setLoginFormPassword(e.target.value)}
+                    placeholder="e.g. madhu3378"
+                    className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 pr-10 text-xs text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-zinc-400 hover:text-white transition"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <button

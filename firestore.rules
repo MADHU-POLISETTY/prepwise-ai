@@ -33,6 +33,8 @@ service cloud.firestore {
       return data.uid == request.auth.uid
           && data.email is string
           && data.email.size() <= 200
+          && data.fullName is string
+          && data.fullName.size() <= 200
           && data.createdAt is string;
     }
 

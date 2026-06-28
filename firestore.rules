@@ -45,6 +45,26 @@ service cloud.firestore {
       allow update: if false; // Interviews are immutable once submitted
     }
 
+    // Questions Collection
+    match /questions/{questionId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidQuestion(request.resource.data);
+      allow delete: if false;
+      allow update: if false; // Questions are immutable once created
+    }
+
+    function isValidQuestion(data) {
+      return data.userId == request.auth.uid
+          && data.text is string
+          && data.text.size() <= 2000
+          && data.domain is string
+          && data.domain.size() <= 200
+          && data.difficulty is string
+          && data.difficulty.size() <= 100
+          && data.createdAt is string;
+    }
+
     function existing() {
       return resource.data;
     }

@@ -80,6 +80,35 @@
         "feedback",
         "completedAt"
       ]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "An interview question record generated dynamically for a user to avoid repeats and keep history.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authentication UID of the user who owns this generated question"
+        },
+        "text": {
+          "type": "string",
+          "description": "The content of the question"
+        },
+        "domain": {
+          "type": "string",
+          "description": "The domain/category of the question"
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "The difficulty level of the question"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp for when this question was generated"
+        }
+      },
+      "required": ["userId", "text", "domain", "difficulty", "createdAt"]
     }
   },
   "firestore": {
@@ -90,6 +119,10 @@
     "/interviews/{interviewId}": {
       "schema": "Interview",
       "description": "Unbounded history collection containing all previous evaluated interview runs"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Collection of dynamically generated questions for each user to track history and prevent repeats"
     }
   }
 }

@@ -41,6 +41,42 @@ function parseCleanJSON(raw: string): any {
   return JSON.parse(text.trim());
 }
 
+async function getEmbedding(client: GoogleGenAI, text: string): Promise<number[]> {
+  try {
+    const result = await client.models.embedContent({
+      model: "text-embedding-004",
+      contents: text,
+    });
+    if (result.embeddings && result.embeddings[0] && result.embeddings[0].values) {
+      return result.embeddings[0].values;
+    }
+    throw new Error("Unable to extract embedding values from Gemini API response.");
+  } catch (err) {
+    console.error("Failed to get embedding:", err);
+    throw err;
+  }
+}
+
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (!vecA || !vecB || vecA.length === 0 || vecB.length === 0) {
+    return 0;
+  }
+  if (vecA.length !== vecB.length) {
+    console.warn(`Embedding vectors length mismatch: ${vecA.length} vs ${vecB.length}`);
+    return 0;
+  }
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 // ----------------------------------------------------
 // API ENDPOINTS DEFINITIONS
 // ----------------------------------------------------
@@ -52,29 +88,44 @@ app.get("/api/health", (req, res) => {
 
 // 2. Generate Interview Questions
 app.post("/api/generate-questions", async (req, res) => {
-  const { category, role = "Software Engineer", difficulty = "Intermediate", company = "Standard", customTopic = "" } = req.body;
+  const { 
+    category, 
+    domain, 
+    difficulty = "Medium", 
+    numQuestions = 5, 
+    role = "Software Engineer", 
+    company = "Standard", 
+    customTopic = "",
+    previousQuestions = []
+  } = req.body;
+
+  // Align domain and category
+  const selectedDomain = domain || category || "Technical";
 
   const client = getGeminiClient();
   if (!client) {
     // Generate intelligent simulation fallback
-    return res.json(getSimulatedQuestions(category, role, difficulty, company, customTopic));
+    return res.json(getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions));
   }
 
   try {
-    const prompt = `Generate a set of 5 distinct, highly professional and challenging interview questions for a ${difficulty} level interview.
-Category: ${category} (HR, Technical, or Aptitude)
+    const prompt = `Generate a set of exactly ${numQuestions} distinct, highly professional and challenging interview questions for a ${difficulty} level interview.
+Target Domain/Technology: ${selectedDomain} (such as Java, Python, Cloud Computing, AWS, DevOps, AI/ML, Aptitude, STAR Behavioral/HR, etc.)
 Target Career/Role: ${role}
 Target Company Focus: ${company} (Focus on ${company}'s culture, core engineering values, leadership principles, or specific interview methodologies)
 ${customTopic ? `Focus Topic or Requirements: ${customTopic}` : ""}
 
 Constraints:
-- Tailor the questions strictly to the selected Category, Role, and Company style.
-- If category is HR, focus on soft skills, leadership, situation handling (using STAR method), conflict resolution, and behavioral questions.
-- If category is Technical, focus on coding standards, system design, engineering principles, data structures, algorithm details, or technical choices corresponding to ${difficulty} level.
-- If category is Aptitude, focus on problem solving, logical puzzles, quantitative thinking or system estimation.`;
+- Generate EXACTLY ${numQuestions} questions.
+- Tailor the questions strictly to the selected Domain, Difficulty level (${difficulty}), and Role.
+- If domain is Aptitude, focus on problem solving, logical puzzles, quantitative thinking or system estimation.
+- If domain is technical (Java, Python, AWS, DevOps, AI/ML, Cloud Computing, etc.), focus on engineering standards, system design, architectural choices, or syntax/compilation details suitable for ${difficulty} level.
+- Ensure the questions are highly distinct, practical, and test genuine real-world capabilities.
+${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following previous questions:\n${previousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
+`;
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are an elite, highly experienced technical recruiter and career coach. Your goal is to draft targeted interview puzzles that test genuine skill and cultural alignment.",
@@ -84,7 +135,7 @@ Constraints:
           items: {
             type: Type.OBJECT,
             properties: {
-              id: { type: Type.INTEGER, description: "Question sequence index 1 to 5" },
+              id: { type: Type.INTEGER, description: "Question sequence index starting from 1" },
               text: { type: Type.STRING, description: "The content of the interview question" }
             },
             required: ["id", "text"]
@@ -103,7 +154,221 @@ Constraints:
   } catch (err: any) {
     console.error("Gemini Question Generation failed:", err);
     // Serve fallback silently
-    res.json(getSimulatedQuestions(category, role, difficulty, company, customTopic));
+    res.json(getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions));
+  }
+});
+
+// 2.5. AI-Based Single Answer Evaluation
+app.post("/api/evaluate-answer", async (req, res) => {
+  const { question, answer } = req.body;
+
+  const cleanAnswer = (answer || "").trim();
+  const client = getGeminiClient();
+  if (!client) {
+    return res.json(getSimulatedSingleAnswerEvaluation(question, cleanAnswer));
+  }
+
+  try {
+    // STEP 1: Generate an ideal answer using Gemini 2.5 Flash
+    const idealPrompt = `You are a professional subject matter expert and elite technical interviewer.
+Generate an outstanding, highly detailed, technically correct, and comprehensive model answer for the following interview question.
+This answer must be specific to the question, avoiding generic templates or placeholder text. It must be highly suitable for interview preparation and show exactly what a perfect candidate would explain.
+
+Question:
+"${question}"
+
+Return your output in a valid JSON object matching this schema:
+{
+  "idealAnswer": "Your generated model answer here"
+}`;
+
+    const idealResponse = await client.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: idealPrompt,
+      config: {
+        systemInstruction: "You are a master technical interviewer and expert career coach.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            idealAnswer: { type: Type.STRING, description: "Detailed, specific, and technically correct perfect model answer" }
+          },
+          required: ["idealAnswer"]
+        }
+      }
+    });
+
+    const idealBodyText = idealResponse.text;
+    if (!idealBodyText) {
+      throw new Error("No ideal answer returned from Gemini API");
+    }
+    const idealResult = parseCleanJSON(idealBodyText);
+    const idealAnswer = idealResult.idealAnswer || "";
+
+    // Check for empty or spaces only first
+    if (!cleanAnswer) {
+      return res.json({
+        isMeaningful: false,
+        isRelevant: false,
+        isTechnicallyCorrect: false,
+        score: 0,
+        feedback: "No answer provided.",
+        improvements: "Please write a response to receive feedback and suggestions.",
+        idealAnswer
+      });
+    }
+
+    const lowercaseAns = cleanAnswer.toLowerCase();
+    // Programmatic heuristic detection of common gibberish/meaningless text
+    const isObviousGibberish = 
+      lowercaseAns.length < 15 && (
+        /^[a-z\s]{1,3}$/.test(lowercaseAns) || 
+        /^(.)\1+$/.test(lowercaseAns.replace(/\s+/g, '')) || 
+        /^[bcdfghjklmnpqrstvwxyz\s]+$/.test(lowercaseAns) || 
+        lowercaseAns === "asdf" ||
+        lowercaseAns === "asdfgh" ||
+        lowercaseAns === "ghg hhg" ||
+        lowercaseAns === "abc xyz" ||
+        lowercaseAns === "idk" ||
+        lowercaseAns === "skip" ||
+        lowercaseAns === "none"
+      );
+
+    if (isObviousGibberish) {
+      return res.json({
+        isMeaningful: false,
+        isRelevant: false,
+        isTechnicallyCorrect: false,
+        score: 0,
+        feedback: "The answer is invalid, meaningless, or unrelated to the question.",
+        improvements: "Please provide a valid, structured answer with professional depth.",
+        idealAnswer
+      });
+    }
+
+    // STEP 2 & 3: Convert to embeddings and calculate cosine similarity
+    let similarity = 0;
+    try {
+      const [userEmbedding, idealEmbedding] = await Promise.all([
+        getEmbedding(client, cleanAnswer),
+        getEmbedding(client, idealAnswer)
+      ]);
+      similarity = cosineSimilarity(userEmbedding, idealEmbedding);
+    } catch (embedErr) {
+      console.error("Embedding calculation failed, falling back:", embedErr);
+      // Fallback: estimate similarity based on basic text overlap
+      similarity = 0.5;
+    }
+
+    // STEP 4: Call Gemini 2.5 Flash to generate feedback, clamped to scoring rules
+    const evaluationPrompt = `You are an elite, highly professional technical interviewer. Evaluate the candidate's answer based on the question and the ideal answer, given a pre-calculated semantic cosine similarity score.
+
+Question:
+"${question}"
+
+Ideal Answer:
+"${idealAnswer}"
+
+Candidate Answer:
+"${cleanAnswer}"
+
+Calculated Cosine Similarity: ${similarity.toFixed(4)}
+
+Strict Scoring Constraints:
+- Since Cosine Similarity is ${similarity.toFixed(4)}:
+  ${similarity < 0.30 ? `- The Cosine Similarity is less than 0.30. You MUST score this answer exactly 0/10. Feedback should state that the answer is unrelated, meaningless, or incorrect.` : ""}
+  ${similarity >= 0.30 && similarity < 0.50 ? `- The Cosine Similarity is between 0.30 and 0.50. You MUST score this answer strictly between 1 and 3 out of 10.` : ""}
+  ${similarity >= 0.50 && similarity < 0.70 ? `- The Cosine Similarity is between 0.50 and 0.70. You MUST score this answer strictly between 4 and 6 out of 10.` : ""}
+  ${similarity >= 0.70 && similarity < 0.85 ? `- The Cosine Similarity is between 0.70 and 0.85. You MUST score this answer strictly between 7 and 8 out of 10.` : ""}
+  ${similarity >= 0.85 ? `- The Cosine Similarity is greater than 0.85. You MUST score this answer strictly between 9 and 10 out of 10.` : ""}
+
+Your task:
+1. Determine if the answer is completely meaningless, off-topic, gibberish, or keyboard mashing. If so, return a score of 0 and feedback of "The answer is invalid, meaningless, or unrelated to the question."
+2. Assess correctness, completeness, and clarity.
+3. Provide professional feedback and actionable concrete improvements.
+4. Provide a precise integer score matching the strict similarity constraint above.
+
+Return your evaluation inside a valid JSON object matching this schema:
+{
+  "isMeaningful": true,
+  "isRelevant": true,
+  "isTechnicallyCorrect": true,
+  "score": 0,
+  "feedback": "Detailed professional feedback here",
+  "improvements": "Actionable improvements here"
+}`;
+
+    const evalResponse = await client.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: evaluationPrompt,
+      config: {
+        systemInstruction: "You are an elite technical lead evaluating candidates with high precision and fairness.",
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            isMeaningful: { type: Type.BOOLEAN, description: "True if the answer is meaningful, false if it is gibberish or keyboard mashing" },
+            isRelevant: { type: Type.BOOLEAN, description: "True if relevant, false if completely off-topic" },
+            isTechnicallyCorrect: { type: Type.BOOLEAN, description: "True if correct, false if contains major errors" },
+            score: { type: Type.INTEGER, description: "Score out of 10 matching the strict cosine similarity bounds" },
+            feedback: { type: Type.STRING, description: "Comprehensive, structured professional feedback" },
+            improvements: { type: Type.STRING, description: "Actionable constructive guidelines" }
+          },
+          required: ["isMeaningful", "isRelevant", "isTechnicallyCorrect", "score", "feedback", "improvements"]
+        }
+      }
+    });
+
+    const evalBodyText = evalResponse.text;
+    if (!evalBodyText) {
+      throw new Error("No evaluation details returned from Gemini API");
+    }
+
+    const evalResult = parseCleanJSON(evalBodyText);
+
+    let isMeaningful = evalResult.isMeaningful !== false;
+    let isRelevant = evalResult.isRelevant !== false;
+    let isTechnicallyCorrect = evalResult.isTechnicallyCorrect === true;
+    let score = typeof evalResult.score === "number" ? evalResult.score : parseInt(evalResult.score) || 0;
+    let feedback = evalResult.feedback || "";
+    let improvements = evalResult.improvements || "";
+
+    // Double check for invalid/gibberish answers
+    if (!isMeaningful || !isRelevant) {
+      score = 0;
+      feedback = "The answer is invalid, meaningless, or unrelated to the question.";
+      isTechnicallyCorrect = false;
+    }
+
+    // Programmatic override to guarantee 100% adherence to strict similarity-based scoring rules
+    if (similarity < 0.30) {
+      score = 0;
+      feedback = "The answer is invalid, meaningless, or unrelated to the question.";
+      isMeaningful = false;
+      isRelevant = false;
+      isTechnicallyCorrect = false;
+    } else if (similarity >= 0.30 && similarity < 0.50) {
+      score = Math.max(1, Math.min(3, score));
+    } else if (similarity >= 0.50 && similarity < 0.70) {
+      score = Math.max(4, Math.min(6, score));
+    } else if (similarity >= 0.70 && similarity < 0.85) {
+      score = Math.max(7, Math.min(8, score));
+    } else if (similarity >= 0.85) {
+      score = Math.max(9, Math.min(10, score));
+    }
+
+    res.json({
+      isMeaningful,
+      isRelevant,
+      isTechnicallyCorrect,
+      score,
+      feedback,
+      improvements,
+      idealAnswer
+    });
+  } catch (err: any) {
+    console.error("Gemini Single Answer Evaluation failed:", err);
+    res.json(getSimulatedSingleAnswerEvaluation(question, cleanAnswer));
   }
 });
 
@@ -367,84 +632,200 @@ How can I help you accelerate your interview readiness today?
 Specify a topic, and let's craft your high-impact technical portfolio.`;
 }
 
-function getSimulatedQuestions(category: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = "") {
-  const genericTopic = customTopic || "Industry Standard Concepts";
-  const searchStr = `${role} ${customTopic} ${company}`.toLowerCase();
-
-  const isDevOps = searchStr.includes("devops") || searchStr.includes("pipeline") || searchStr.includes("ci/cd") || searchStr.includes("terraform") || searchStr.includes("kubernetes");
-  const isAWS = searchStr.includes("aws") || searchStr.includes("amazon");
-  const isGCP = searchStr.includes("gcp") || searchStr.includes("google cloud");
-
-  if (category === "HR") {
-    if (isDevOps || isAWS || isGCP) {
-      return [
-        { id: 1, text: `Describe a situation at ${company} where a critical production outage occurred due to a deployment or cloud infrastructure failure. How did you coordinate the post-mortem analysis and implement safeguards to prevent reoccurrences?` },
-        { id: 2, text: `How do you handle disagreement with software developers regarding security controls or automated testing gates during an urgent hotfix release under ${company}'s operational speed?` },
-        { id: 3, text: `Explain a time when you successfully mentored team members on migrating from legacy on-premise components to cloud Native architecture or adopting CI/CD practices.` },
-        { id: 4, text: `Why are you looking to join PrepWise AI as a Cloud Infrastructure specialist, and what values do you prioritize regarding platform reliability and uptime?` },
-        { id: 5, text: `Describe your methodology for communicating high-value cloud budget optimization strategies to non-technical stakeholders to secure approvals for infrastructure modernization projects.` }
-      ];
-    }
-    return [
-      { id: 1, text: `Tell me about a time you encountered a significant conflict while working on a ${genericTopic} task as a ${role}. How did you resolve it?` },
-      { id: 2, text: `What is your approach to handling tight project deadlines at ${company}, particularly when managing requirements for ${role}?` },
-      { id: 3, text: `Describe a scenario where you convinced stakeholders to change their minds about a design or strategy choice.` },
-      { id: 4, text: `Why are you looking to join PrepWise AI, and how do your skills as a ${role} align with our culture?` },
-      { id: 5, text: `Describe your greatest professional challenge and the specific methodologies you leveraged to overcome it.` }
+function getSimulatedQuestions(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = "", numQuestions: number = 5) {
+  const domain = (categoryOrDomain || "Technical").toLowerCase();
+  const searchStr = `${domain} ${role} ${customTopic} ${company}`.toLowerCase();
+  
+  // Base lists of questions per domain/category
+  let pool: string[] = [];
+  
+  if (searchStr.includes("java")) {
+    pool = [
+      `Explain the difference between HashMap and ConcurrentHashMap in Java. How is thread-safety achieved in ConcurrentHashMap?`,
+      `What is the Java Memory Model? How do volatile variables help in multi-threaded environments?`,
+      `How does garbage collection work in Java? Compare G1 GC with ZGC.`,
+      `Explain the concept of functional interfaces and streams in Java 8+. What are lazy evaluation benefits?`,
+      `How do you avoid memory leaks in a long-running Spring Boot application in Java?`,
+      `Explain Java's virtual threads (Project Loom) and how they differ from platform threads.`,
+      `What are the security implications of Java deserialization vulnerabilities, and how do you mitigate them?`
     ];
-  } else if (category === "Technical") {
-    if (isAWS) {
-      return [
-        { id: 1, text: `How do you design a highly available, multi-region architecture using AWS services like Route 53, Application Load Balancers, Auto Scaling Groups, and Amazon Aurora Global Databases?` },
-        { id: 2, text: `Describe AWS Identity and Access Management (IAM) best practices, particularly regarding the principle of least privilege, IAM roles, and VPC service endpoints.` },
-        { id: 3, text: `How do you manage Infrastructure as Code (IaC) securely, avoiding configuration drift or exposing hardcoded API credentials in Terraform AWS configurations?` },
-        { id: 4, text: `Walk me through when you would select AWS Lambda (Serverless) over hosting workloads on Amazon ECS/EKS container environments, comparing CPU limits and execution timeouts.` },
-        { id: 5, text: `What strategies do you employ to diagnose and resolve a severe performance bottleneck inside an Amazon RDS PostgreSQL database under query volume spikes?` }
-      ];
-    }
-    if (isGCP) {
-      return [
-        { id: 1, text: `Explain the technical differences between GCP VPC Network Peering and Shared VPC when designing secure cross-project service-mesh connectivity.` },
-        { id: 2, text: `How do you optimize resource utilization and configuration of autoscaling Node pools inside Google Kubernetes Engine (GKE) and GKE Autopilot?` },
-        { id: 3, text: `Describe GCP Cloud IAM service accounts management, and how GCP Workload Identity overcomes the need to download and store static JSON service account keys.` },
-        { id: 4, text: `Walk me through how you would configure a multi-layered security setup in GCP using Cloud Armor, Identity-Aware Proxy (IAP), and VPC Service Controls.` },
-        { id: 5, text: `How do you choose between GCP Pub/Sub, Cloud Tasks, and Cloud Composer when orchestrating high-throughput, decoupled microservices data flows?` }
-      ];
-    }
-    if (isDevOps) {
-      return [
-        { id: 1, text: `Explain the architectural concept of CI/CD and how you implement automated canary deployments or blue/green deployments to minimize user-facing downtime.` },
-        { id: 2, text: `Describe how you design a centralized logging and monitoring observability stack using tools like Prometheus, Grafana, ELK, or Datadog.` },
-        { id: 3, text: `How do you handle secrets management in containerized Kubernetes applications? Compare Kubernetes Secrets with external vault solutions like HashiCorp Vault.` },
-        { id: 4, text: `Describe the role of Terraform state files and explain the mechanism behind state locking, along with how you resolve persistent state file corruption.` },
-        { id: 5, text: `What is your strategy for securing container images throughout a continuous integration build pipeline, including vulnerability scanning and digital signing?` }
-      ];
-    }
-    return [
-      { id: 1, text: `Explain the core conceptual differences between SQL and NoSQL storage paradigms, and when to use them for ${role} application data at ${company}.` },
-      { id: 2, text: `How do you secure server-side REST API endpoints from potential CSRF, XSS, or unauthorized header injection attacks in web systems?` },
-      { id: 3, text: `Walk me through how you would optimize a slow-performing database query or system pathway on a workspace dealing with ${genericTopic}.` },
-      { id: 4, text: `What are the trade-offs of using Microservices vs. Monolithic architecture, especially regarding system deployment complexity?` },
-      { id: 5, text: `Describe the lifecycle of an asynchronous execution queue, and how to deal with failures, re-tries, and connection dropouts.` }
+  } else if (searchStr.includes("python")) {
+    pool = [
+      `What are generators and decorators in Python? Provide an architectural use-case for each.`,
+      `Explain Python's Global Interpreter Lock (GIL). How does it impact multi-threading vs multi-processing?`,
+      `How is memory managed in Python? Explain reference counting and garbage collection.`,
+      `What are metaclasses in Python, and when would you actually use them in design patterns?`,
+      `How do you optimize slow database query interactions in a Django or FastAPI Python application?`,
+      `Explain asynchronous programming in Python using asyncio. How does the event loop work?`,
+      `What is the difference between deep copy and shallow copy in Python, and how are mutable defaults handled?`
+    ];
+  } else if (searchStr.includes("aws") || searchStr.includes("amazon")) {
+    pool = [
+      `How do you design a highly available, multi-region architecture using AWS Route 53, ALB, Auto Scaling, and Aurora?`,
+      `Explain IAM policies evaluation logic. What is the difference between identity-based policies and resource-based policies?`,
+      `How do you securely configure a VPC with public and private subnets, NAT gateways, and VPC endpoints on AWS?`,
+      `Compare AWS Lambda (serverless) with ECS Fargate for hosting a containerized high-throughput microservice.`,
+      `How do you implement data encryption at rest and in transit across AWS S3, RDS, and DynamoDB?`,
+      `Explain how AWS KMS works, including envelope encryption and key rotation.`,
+      `What is your strategy for monitoring and logging across AWS CloudWatch, CloudTrail, and VPC Flow Logs?`
+    ];
+  } else if (searchStr.includes("devops") || searchStr.includes("pipeline") || searchStr.includes("terraform") || searchStr.includes("docker")) {
+    pool = [
+      `Explain the concept of Infrastructure as Code (IaC) and how you resolve state locking conflicts in Terraform.`,
+      `Describe how to design a zero-downtime blue/green deployment pipeline using Kubernetes or ALB.`,
+      `What is the difference between Docker image layers and container runtimes, and how do you secure images?`,
+      `How do you design an observability dashboard using Prometheus, Grafana, and ELK stack?`,
+      `Describe how to handle secrets management in a GitOps workflow (e.g. ArgoCD, Vault).`,
+      `What is backpressure in CI/CD pipeline queues, and how do you prevent resource exhaustion?`,
+      `How do you diagnose and recover from a split-brain scenario in a clustered container orchestrator?`
+    ];
+  } else if (searchStr.includes("cloud computing") || searchStr.includes("gcp") || searchStr.includes("azure")) {
+    pool = [
+      `What are the architectural trade-offs between virtual machines, containerization, and serverless computing?`,
+      `Explain the CAP theorem. How do you choose between strong consistency and eventual consistency in cloud databases?`,
+      `How do you design secure cross-network communication between multiple cloud regions or projects?`,
+      `Explain load balancing algorithms (round robin, least connections, IP hash) used in cloud native gateways.`,
+      `What is a CDN (Content Delivery Network), and how does edge caching impact global API latency?`,
+      `Explain the Shared Responsibility Model in public cloud computing environments.`,
+      `How do you implement auto-scaling policies based on CPU, memory, or custom message queue depth metrics?`
+    ];
+  } else if (searchStr.includes("ai") || searchStr.includes("ml") || searchStr.includes("machine learning") || searchStr.includes("deep learning")) {
+    pool = [
+      `What is the difference between supervised, unsupervised, and reinforcement learning?`,
+      `Explain the concept of overfitting and how to prevent it using regularization, dropout, or early stopping.`,
+      `How do transformer architectures work, and what is the role of self-attention mechanism?`,
+      `Describe how you deploy a large language model (LLM) or deep learning model to production at scale.`,
+      `What are vector databases (e.g. Pinecone, Chroma), and how do they support Retrieval-Augmented Generation (RAG)?`,
+      `Explain the difference between gradient descent, stochastic gradient descent, and Adam optimization.`,
+      `How do you evaluate machine learning model performance? Explain precision, recall, F1-score, and ROC-AUC.`
+    ];
+  } else if (searchStr.includes("aptitude") || searchStr.includes("puzzle") || searchStr.includes("math")) {
+    pool = [
+      `You have 8 identical-looking balls, but one is slightly heavier. Using a simple balance scale, what is the minimum number of weighings needed to find the heavy ball?`,
+      `A clock shows exactly 3:15. What is the angle in degrees between the hour hand and the minute hand?`,
+      `A service platform notices traffic spikes of 300% on weekends. If cloud compute instances scale linearly, what autoscaling rules would you design to minimize cost?`,
+      `Describe the logical process of estimating the total number of commercial airplane flights landing in Chicago on an average Wednesday.`,
+      `If a team of 5 engineers completes a project in 20 days, how long will it take a team of 8 engineers assuming linear scaling but 15% coordination overhead?`,
+      `A train leaves Station A heading to Station B at 60 mph. At the same time, another train leaves Station B heading to Station A at 80 mph. If the stations are 280 miles apart, when and where do they meet?`,
+      `Explain how to calculate the present value of receiving $121 in two years if the annual compound interest rate is 10%.`
+    ];
+  } else if (searchStr.includes("hr") || searchStr.includes("behavioral") || searchStr.includes("soft skills")) {
+    pool = [
+      `Tell me about a time you encountered a significant technical conflict while working on a critical project as a ${role}. How did you resolve it?`,
+      `What is your approach to handling tight project deadlines at ${company}, particularly when managing dependencies or changing requirements?`,
+      `Describe a scenario where you convinced business stakeholders or engineering peers to change their minds about an architectural or design choice.`,
+      `Why are you looking to join ${company}, and how do your skills as a ${role} align with our culture and leadership principles?`,
+      `Describe your greatest professional challenge and the specific methodologies you leveraged to overcome it.`
     ];
   } else {
-    if (isDevOps || isAWS || isGCP) {
-      return [
-        { id: 1, text: `A service platform notices traffic spikes of 300% on weekends. If cloud compute instances scale linearly, what autoscaling rules and load balancing strategies would you design to minimize cost while keeping response latency under 200ms?` },
-        { id: 2, text: `Your cloud storage bucket contains 10TB of log files, with 95% never accessed after 30 days. Design an automated storage lifecycle policy and calculate the cost optimization savings.` },
-        { id: 3, text: `Explain how you would estimate the required bandwidth and subnet address allocation sizes (CIDR blocks) for a regional cloud datacenter hosting 15,000 active microservices containers.` },
-        { id: 4, text: `In a failover scenario, switching traffic from Region A to Region B takes 4 minutes. If SLA guarantees 99.9% uptime, how many such failovers can occur in a month before violating the SLA agreement?` },
-        { id: 5, text: `A backup pipeline uploads data chunks of 50MB to a Cloud Storage service with a failure rate of 2%. If each fail-and-retry costs 0.1 cents, estimate the cost overhead of transferring 10,000 files.` }
-      ];
-    }
-    return [
-      { id: 1, text: `You have 8 identical-looking balls, but one is slightly heavier. Using a simple balance scale, what is the minimum number of weighings needed to find the heavy ball?` },
-      { id: 2, text: `A service platform notices traffic spikes of 300% on weekends. If server cost scales linearly, what is your strategy to control standard infrastructure spend?` },
-      { id: 3, text: `Describe the logical process of estimating the total number of commercial airplane flights landing in Chicago on an average Wednesday.` },
-      { id: 4, text: `If a team of 5 engineers completes a project in 20 days, how long will it take a team of 8 engineers assuming linear scaling but absolute coordinate overhead?` },
-      { id: 5, text: `Explain a time value calculation in standard metrics: if interest is 10% compounded annually, what is the present value of receiving $121 in two years?` }
+    // Default generic technical
+    pool = [
+      `Explain the core conceptual differences between SQL and NoSQL storage paradigms, and when to use them for ${role} application data at ${company}.`,
+      `How do you secure server-side REST API endpoints from potential CSRF, XSS, or unauthorized header injection attacks?`,
+      `Walk me through how you would optimize a slow-performing database query or system pathway.`,
+      `What are the trade-offs of using Microservices vs. Monolithic architecture, especially regarding system deployment complexity?`,
+      `Describe the lifecycle of an asynchronous execution queue, and how to deal with failures, re-tries, and connection dropouts.`,
+      `What is the purpose of load balancers, and how do they distribute traffic across web server clusters?`,
+      `Explain how CORS (Cross-Origin Resource Sharing) works and how to configure it securely.`
     ];
   }
+
+  // Shuffle pool to ensure variety and uniqueness
+  pool = pool.sort(() => Math.random() - 0.5);
+
+  // Take the required number of questions, up to pool size
+  const selectedQuestions = pool.slice(0, numQuestions);
+
+  // If pool didn't have enough, fill with generic questions
+  while (selectedQuestions.length < numQuestions) {
+    const nextIdx = selectedQuestions.length + 1;
+    selectedQuestions.push(`As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`);
+  }
+
+  return selectedQuestions.map((text, index) => ({
+    id: index + 1,
+    text: text
+  }));
+}
+
+function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {
+  const clean = answer.trim();
+  const lowercaseAns = clean.toLowerCase();
+
+  let isMeaningful = true;
+  let isRelevant = true;
+  let isTechnicallyCorrect = true;
+  let score = 5;
+  let feedback = "Decent start, but the response is too brief to show full professional mastery.";
+  let improvements = "Detail the exact actions you took and the toolsets utilized (e.g., specifying Docker, AWS RDS, or JVM garbage collectors).";
+
+  if (!clean) {
+    isMeaningful = false;
+    isRelevant = false;
+    isTechnicallyCorrect = false;
+    score = 0;
+    feedback = "No answer provided.";
+    improvements = "Please write a response to receive feedback and suggestions.";
+  } else {
+    // Check if it looks like obvious gibberish or random input
+    const isObviousGibberish = 
+      lowercaseAns.length < 15 && (
+        /^[a-z\s]{1,3}$/.test(lowercaseAns) || 
+        /^(.)\1+$/.test(lowercaseAns.replace(/\s+/g, '')) || 
+        /^[bcdfghjklmnpqrstvwxyz\s]+$/.test(lowercaseAns) || 
+        lowercaseAns === "asdf" ||
+        lowercaseAns === "asdfgh" ||
+        lowercaseAns === "ghg hhg" ||
+        lowercaseAns === "abc xyz" ||
+        lowercaseAns === "idk" ||
+        lowercaseAns === "skip" ||
+        lowercaseAns === "none"
+      );
+
+    if (isObviousGibberish) {
+      isMeaningful = false;
+    } else if (lowercaseAns.includes("cricket") && question.toLowerCase().includes("gradient descent")) {
+      isRelevant = false; // direct user example check
+    }
+
+    if (!isMeaningful) {
+      score = 0;
+      feedback = "The answer is invalid, meaningless, or unrelated to the question.";
+      isRelevant = false;
+      isTechnicallyCorrect = false;
+      improvements = "Please write a meaningful professional response related to the question.";
+    } else if (!isRelevant) {
+      score = 0;
+      feedback = "The answer is invalid, meaningless, or unrelated to the question.";
+      isTechnicallyCorrect = false;
+      improvements = "Please write a response that directly addresses the question asked.";
+    } else {
+      if (clean.length > 120) {
+        score = 8;
+        feedback = "This is a strong answer that shows structured context and relevant terminology. Good job explaining the workflow.";
+        improvements = "To make this answer perfect, include a direct business metric or quantitative result (e.g. 'reduced latency by 20%').";
+      } else if (clean.length > 50) {
+        score = 6;
+        feedback = "You have a decent outline, but the conceptual depth is moderate. You mentioned the target keywords correctly.";
+        improvements = "Detail the exact actions you took and the toolsets utilized (e.g., specifying Docker, AWS RDS, or JVM garbage collectors).";
+      } else {
+        score = 3;
+        feedback = "The answer is quite brief and lacks specific details or structured metrics.";
+        improvements = "Expand your response with precise technical terms. Use the STAR (Situation, Task, Action, Result) methodology.";
+        isTechnicallyCorrect = false;
+      }
+    }
+  }
+
+  return {
+    isMeaningful,
+    isRelevant,
+    isTechnicallyCorrect,
+    score,
+    feedback,
+    improvements,
+    idealAnswer: `For the question: "${question}", a perfect model response should clearly define the core concept, describe your step-by-step resolution, and highlight a 20% performance/workflow speedup using concrete metrics.`
+  };
 }
 
 function getSimulatedEvaluation(category: string, role: string, answers: any[]) {

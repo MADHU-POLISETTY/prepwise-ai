@@ -1,7 +1,10 @@
-import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
-dotenv.config();
+// Only load dotenv locally, not on Vercel
+if (!process.env.VERCEL) {
+  const dotenv = require("dotenv");
+  dotenv.config();
+}
 
 console.log("Gemini API Key exists:", !!process.env.GEMINI_API_KEY);
 

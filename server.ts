@@ -125,7 +125,7 @@ ${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT genera
 `;
 
     const response = await client.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: prompt,
       config: {
         systemInstruction: "You are an elite, highly experienced technical recruiter and career coach. Your goal is to draft targeted interview puzzles that test genuine skill and cultural alignment.",
@@ -169,36 +169,38 @@ app.post("/api/evaluate-answer", async (req, res) => {
   }
 
   try {
-    // STEP 1: Generate an ideal answer using Gemini 2.5 Flash
-    const idealPrompt = `You are an elite, student-friendly technical instructor and career mentor. Your goal is to generate a model answer for the following question that is perfect yet extremely easy to understand for college students and freshers.
-
-Question:
-"${question}"
-
-STRICT GUIDELINES FOR THE GENERATED MODEL ANSWER:
-1. Use SIMPLE, EASY-TO-UNDERSTAND ENGLISH. No complex corporate speak or difficult jargon without explanation.
-2. It must be SHORT AND CONCISE (maximum 100 to 200 words).
-3. It must be technically 100% correct, but presented in natural, conversational, and beginner-friendly language.
-4. Use simple analogies, bullet points, or simple examples where they help explain the concept quickly.
-5. If the question asks for past experience or a "real-life scenario" (and the candidate is a fresher), generate a simple, realistic scenario that a student or junior developer can easily explain (e.g., a simple lab project, a small team project, debugging a local error, fixing permission or code issues, checking logs, etc.).
-6. Avoid abstract templates or placeholders like "Define concepts..." - you must output the ACTUAL, specific answer to this question.
-7. Support any of the standard domains (Java, Python, AWS, DevOps, AI/ML, DBMS, OS, CN, DSA, HR, Aptitude, Cloud Computing, Linux, Docker, Kubernetes, Terraform).
-
-Return your output in a valid JSON object matching this schema:
-{
-  "idealAnswer": "Your simple, beginner-friendly model answer here (under 200 words)"
-}`;
+    // STEP 1: Generate an ideal answer using Gemini 3.5 Flash
+    const idealPrompt = `Question:
+"${question}"`;
 
     const idealResponse = await client.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: idealPrompt,
       config: {
-        systemInstruction: "You are an encouraging, elite technical teacher and career mentor who explains complex topics in simple terms for freshers and students.",
+        systemInstruction: `You are an expert interview coach for students and freshers.
+
+Generate ONLY the actual correct answer for the given question.
+
+Rules:
+
+* Simple English.
+* Maximum 150 words.
+* No generic templates.
+* No placeholders.
+* No instructions about how to answer.
+* Directly answer the question.
+* Use bullet points if useful.
+
+Return ONLY JSON:
+
+{
+"idealAnswer": ""
+}`,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            idealAnswer: { type: Type.STRING, description: "Detailed, specific, and technically correct perfect model answer" }
+            idealAnswer: { type: Type.STRING, description: "Direct and technically correct perfect model answer" }
           },
           required: ["idealAnswer"]
         }
@@ -306,7 +308,7 @@ Return your evaluation inside a valid JSON object matching this schema:
 }`;
 
     const evalResponse = await client.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.5-flash",
       contents: evaluationPrompt,
       config: {
         systemInstruction: "You are an elite technical lead evaluating candidates with high precision and fairness.",
@@ -755,6 +757,48 @@ function getSimulatedQuestions(categoryOrDomain: string, role: string, difficult
   }));
 }
 
+function generateFallbackIdealAnswer(question: string): string {
+  const q = question.toLowerCase();
+  
+  if (q.includes("highly available") || q.includes("scalable") || q.includes("aptitude")) {
+    return "I would use a microservices architecture so that different parts of the system can scale independently.\n\nSome important tools and technologies are:\n* Load balancers to distribute traffic.\n* Kubernetes for container orchestration.\n* Redis for caching frequently used data.\n* Cloud databases with replication for high availability.\n* Monitoring tools like Prometheus and Grafana.\n* Message queues such as Kafka for asynchronous processing.\n\nThese tools help the system remain fast, reliable, and available even when millions of users access it at the same time.";
+  }
+  
+  if (q.includes("java")) {
+    return "In Java, standard professional practices involve proper garbage collection tuning, memory management, and using modern concurrency utilities like virtual threads or ExecutorService. We should prioritize solid object-oriented design patterns, write clean JUnit test suites, use custom exceptions for robust error handling, and leverage modern stream APIs for elegant and efficient collection processing.";
+  }
+  
+  if (q.includes("python")) {
+    return "For Python applications, we typically choose list comprehensions and generators for memory-efficient iteration, use typing hints for clarity, structure packages with virtual environments, and leverage robust frameworks like FastAPI or Django. For performance-critical blocks, async programming or multiprocessing can bypass the GIL and significantly boost processing speed.";
+  }
+  
+  if (q.includes("aws") || q.includes("cloud")) {
+    return "AWS system designs typically rely on Amazon EC2 for computing, Amazon RDS or Aurora for reliable database management with multi-AZ replication, and Amazon S3 for durable object storage. Implementing auto-scaling groups, application load balancers, and CloudFront CDN ensures high availability, low latency, and automatic traffic management globally.";
+  }
+  
+  if (q.includes("devops") || q.includes("docker") || q.includes("kubernetes")) {
+    return "A modern DevOps pipeline uses Docker to containerize applications, Kubernetes to orchestrate deployment and scaling, and GitHub Actions or Jenkins for automated continuous integration. Monitoring with Prometheus and Grafana helps identify resource bottlenecks early, ensuring robust, predictable, and zero-downtime infrastructure updates.";
+  }
+
+  if (q.includes("dbms") || q.includes("database") || q.includes("sql")) {
+    return "Database optimizations focus on appropriate indexing (e.g., B-Tree or Hash indexes), normalizing tables to reduce redundancy, and using connection pooling to handle heavy user traffic. We also implement read replicas to offload query processing and design query execution plans carefully to avoid slow full-table scans.";
+  }
+
+  if (q.includes("dsa") || q.includes("array") || q.includes("string") || q.includes("tree") || q.includes("graph")) {
+    return "To optimize algorithms, we analyze time and space complexity using Big O notation. Choosing the right data structure (such as a Hash Map for O(1) lookups or a Trie for efficient prefix searching) avoids redundant computations. Standard approaches include using the two-pointer technique, slide window, dynamic programming, or BFS/DFS for graph traversals.";
+  }
+
+  if (q.includes("ai") || q.includes("ml") || q.includes("model") || q.includes("gradient")) {
+    return "Developing scalable AI/ML systems involves choosing proper evaluation metrics, preventing overfitting with regularization, and designing pipelines with robust feature engineering. Standard architectures use deep neural networks optimized via Adam or SGD with gradient descent, coupled with efficient batching and parallel GPU computation.";
+  }
+
+  if (q.includes("hr") || q.includes("behavioral") || q.includes("experience")) {
+    return "To answer this professionally, we use the STAR (Situation, Task, Action, Result) methodology. We describe a specific technical challenge in a lab or small project, explain our exact actions (debugging, researching, or testing), and highlight the measurable positive results, such as resolving a critical bug or completing a project before the deadline.";
+  }
+
+  return `To directly answer this question, a perfect solution involves applying modern software engineering patterns. We would implement modular components, configure automated testing, and use reliable industry-standard frameworks matching the domain technology to ensure speed, security, and robust scalability under high workloads.`;
+}
+
 function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {
   const clean = answer.trim();
   const lowercaseAns = clean.toLowerCase();
@@ -831,7 +875,7 @@ function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {
     score,
     feedback,
     improvements,
-    idealAnswer: `For the question: "${question}", a perfect model response should clearly define the core concept, describe your step-by-step resolution, and highlight a 20% performance/workflow speedup using concrete metrics.`
+    idealAnswer: generateFallbackIdealAnswer(question)
   };
 }
 

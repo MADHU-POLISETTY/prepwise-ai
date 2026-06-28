@@ -175,6 +175,48 @@ const INITIAL_HISTORY: InterviewSessionRecord[] = [
   }
 ];
 
+function generateFallbackIdealAnswer(question: string): string {
+  const q = question.toLowerCase();
+  
+  if (q.includes("highly available") || q.includes("scalable") || q.includes("aptitude")) {
+    return "I would use a microservices architecture so that different parts of the system can scale independently.\n\nSome important tools and technologies are:\n* Load balancers to distribute traffic.\n* Kubernetes for container orchestration.\n* Redis for caching frequently used data.\n* Cloud databases with replication for high availability.\n* Monitoring tools like Prometheus and Grafana.\n* Message queues such as Kafka for asynchronous processing.\n\nThese tools help the system remain fast, reliable, and available even when millions of users access it at the same time.";
+  }
+  
+  if (q.includes("java")) {
+    return "In Java, standard professional practices involve proper garbage collection tuning, memory management, and using modern concurrency utilities like virtual threads or ExecutorService. We should prioritize solid object-oriented design patterns, write clean JUnit test suites, use custom exceptions for robust error handling, and leverage modern stream APIs for elegant and efficient collection processing.";
+  }
+  
+  if (q.includes("python")) {
+    return "For Python applications, we typically choose list comprehensions and generators for memory-efficient iteration, use typing hints for clarity, structure packages with virtual environments, and leverage robust frameworks like FastAPI or Django. For performance-critical blocks, async programming or multiprocessing can bypass the GIL and significantly boost processing speed.";
+  }
+  
+  if (q.includes("aws") || q.includes("cloud")) {
+    return "AWS system designs typically rely on Amazon EC2 for computing, Amazon RDS or Aurora for reliable database management with multi-AZ replication, and Amazon S3 for durable object storage. Implementing auto-scaling groups, application load balancers, and CloudFront CDN ensures high availability, low latency, and automatic traffic management globally.";
+  }
+  
+  if (q.includes("devops") || q.includes("docker") || q.includes("kubernetes")) {
+    return "A modern DevOps pipeline uses Docker to containerize applications, Kubernetes to orchestrate deployment and scaling, and GitHub Actions or Jenkins for automated continuous integration. Monitoring with Prometheus and Grafana helps identify resource bottlenecks early, ensuring robust, predictable, and zero-downtime infrastructure updates.";
+  }
+
+  if (q.includes("dbms") || q.includes("database") || q.includes("sql")) {
+    return "Database optimizations focus on appropriate indexing (e.g., B-Tree or Hash indexes), normalizing tables to reduce redundancy, and using connection pooling to handle heavy user traffic. We also implement read replicas to offload query processing and design query execution plans carefully to avoid slow full-table scans.";
+  }
+
+  if (q.includes("dsa") || q.includes("array") || q.includes("string") || q.includes("tree") || q.includes("graph")) {
+    return "To optimize algorithms, we analyze time and space complexity using Big O notation. Choosing the right data structure (such as a Hash Map for O(1) lookups or a Trie for efficient prefix searching) avoids redundant computations. Standard approaches include using the two-pointer technique, slide window, dynamic programming, or BFS/DFS for graph traversals.";
+  }
+
+  if (q.includes("ai") || q.includes("ml") || q.includes("model") || q.includes("gradient")) {
+    return "Developing scalable AI/ML systems involves choosing proper evaluation metrics, preventing overfitting with regularization, and designing pipelines with robust feature engineering. Standard architectures use deep neural networks optimized via Adam or SGD with gradient descent, coupled with efficient batching and parallel GPU computation.";
+  }
+
+  if (q.includes("hr") || q.includes("behavioral") || q.includes("experience")) {
+    return "To answer this professionally, we use the STAR (Situation, Task, Action, Result) methodology. We describe a specific technical challenge in a lab or small project, explain our exact actions (debugging, researching, or testing), and highlight the measurable positive results, such as resolving a critical bug or completing a project before the deadline.";
+  }
+
+  return `To directly answer this question, a perfect solution involves applying modern software engineering patterns. We would implement modular components, configure automated testing, and use reliable industry-standard frameworks matching the domain technology to ensure speed, security, and robust scalability under high workloads.`;
+}
+
 export default function App() {
   // Launch Flow States
   const [showSplash, setShowSplash] = useState<boolean>(true);
@@ -657,7 +699,7 @@ export default function App() {
       score: 0,
       feedback: "No answer provided.",
       improvements: "Please write a response to receive feedback and suggestions.",
-      idealAnswer: "The ideal answer should address the core technical concepts of the question."
+      idealAnswer: generateFallbackIdealAnswer(currentQ.text)
     };
 
     // Always call the evaluation API to get strict scoring and dynamic ideal answers
@@ -683,7 +725,7 @@ export default function App() {
           score: 0,
           feedback: "No answer provided.",
           improvements: "Please write a response to receive feedback and suggestions.",
-          idealAnswer: `For: "${currentQ.text}", define the core concepts, describe your step-by-step resolution, and highlight standard professional best practices.`
+          idealAnswer: generateFallbackIdealAnswer(currentQ.text)
         };
       } else {
         const lowercaseAns = answerTextTrimmed.toLowerCase();
@@ -706,21 +748,21 @@ export default function App() {
             score: 0,
             feedback: "The answer is invalid, meaningless, or unrelated to the question.",
             improvements: "Please write a meaningful professional response related to the question.",
-            idealAnswer: `For: "${currentQ.text}", define the core concepts, describe your step-by-step resolution, and highlight standard professional best practices.`
+            idealAnswer: generateFallbackIdealAnswer(currentQ.text)
           };
         } else if (answerTextTrimmed.length > 100) {
           evalResult = {
             score: 8,
             feedback: "Solid technical explanation showing structured thinking and deep domain knowledge.",
             improvements: "Include more concrete business KPIs or numeric details.",
-            idealAnswer: `For: "${currentQ.text}", state key technical patterns and finish with a quantifiable latency/throughput optimization.`
+            idealAnswer: generateFallbackIdealAnswer(currentQ.text)
           };
         } else {
           evalResult = {
             score: 5,
             feedback: "Decent start, but the response is too brief to show full professional mastery.",
             improvements: "Expand on the exact tools, architectures, and design trade-offs involved.",
-            idealAnswer: `For: "${currentQ.text}", define the core concepts, describe your step-by-step resolution, and highlight a 20% database/workflow speedup.`
+            idealAnswer: generateFallbackIdealAnswer(currentQ.text)
           };
         }
       }

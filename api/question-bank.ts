@@ -1,4 +1,4 @@
-import { getQuestionBankPool } from "./_utils";
+import { getQuestionBankPool } from "./_utils.ts";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET" && req.method !== "POST") {

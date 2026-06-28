@@ -1,8 +1,9 @@
+import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
-// Only load dotenv locally, not on Vercel
+
+
 if (!process.env.VERCEL) {
-  const dotenv = require("dotenv");
   dotenv.config();
 }
 

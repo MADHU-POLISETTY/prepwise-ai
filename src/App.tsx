@@ -286,6 +286,30 @@ export default function App() {
     return () => clearTimeout(splashTimer);
   }, []);
 
+  // Helper to translate Firebase Authentication error codes to simple, beginner-friendly messages.
+  const getFriendlyAuthErrorMessage = (code: string): string => {
+    switch (code) {
+      case 'auth/invalid-credential':
+        return "Invalid email or password. Please verify your credentials and try again.";
+      case 'auth/invalid-email':
+        return "The email address you entered is not valid. Please check for typos (e.g., candidate@domain.com).";
+      case 'auth/user-not-found':
+        return "No account found with this email. Please sign up with a new email.";
+      case 'auth/wrong-password':
+        return "Incorrect password. Please try again.";
+      case 'auth/email-already-in-use':
+        return "This email is already registered. Logging you in with the provided password...";
+      case 'auth/weak-password':
+        return "The password is too weak. Please use at least 8 characters.";
+      case 'auth/network-request-failed':
+        return "Network error. Please check your internet connection and try again.";
+      case 'auth/too-many-requests':
+        return "Access to this account has been temporarily disabled due to too many failed login attempts. Please try again later.";
+      default:
+        return "Authentication failed. Please check your credentials and try again.";
+    }
+  };
+
   // Native Auth Form Submission Action
   const handleSignUpLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,8 +361,12 @@ export default function App() {
         } catch (authErr: any) {
           // If already in use, attempt logging in with the same email & password
           if (authErr.code === 'auth/email-already-in-use') {
-            userCredential = await signInWithEmailAndPassword(auth, finalEmail, password);
-            showToast(`Welcome back, ${finalName}! Profile synchronized.`, "success");
+            try {
+              userCredential = await signInWithEmailAndPassword(auth, finalEmail, password);
+              showToast(`Welcome back, ${finalName}! Profile synchronized.`, "success");
+            } catch (signInErr: any) {
+              throw signInErr;
+            }
           } else {
             throw authErr;
           }
@@ -353,7 +381,9 @@ export default function App() {
         setIsLoggedIn(true);
       } catch (err: any) {
         console.error("Authentication Error: ", err);
-        showToast(err.message || "Authentication failed. Please verify credentials.", "error");
+        const code = err.code || "";
+        const friendlyMessage = getFriendlyAuthErrorMessage(code);
+        showToast(friendlyMessage, "error");
       }
     } else {
       // Offline fallback mode

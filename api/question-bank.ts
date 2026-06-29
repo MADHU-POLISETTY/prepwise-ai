@@ -1,4 +1,9 @@
-import { getQuestionBankPool } from "./_utils.js";
+import { getQuestionBankPool, getGeminiClient, parseCleanJSON } from "./_utils.js";
+import { Type } from "@google/genai";
+import { dockerQuestions } from "./docker.js";
+import { linuxQuestions } from "./linux.js";
+import { gitQuestions } from "./git.js";
+import { awsQuestions } from "./aws.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET" && req.method !== "POST") {
@@ -13,11 +18,110 @@ export default async function handler(req: any, res: any) {
   const actualDomain = String(domain);
   const actualCustomTopic = String(customTopic);
 
+  // Parse target quantity/count
+  let count = parseInt(req.query?.count || req.query?.limit || req.body?.count || req.body?.limit || "");
+  if (isNaN(count)) {
+    const counts = [3, 5, 10];
+    count = counts[Math.floor(Math.random() * counts.length)];
+  }
+
+  const trimmedDomain = actualDomain.trim().toLowerCase();
+  let questionsPool: any[] = [];
+
+  if (trimmedDomain === "docker" || trimmedDomain.includes("docker")) {
+    questionsPool = dockerQuestions;
+  } else if (trimmedDomain === "linux" || trimmedDomain.includes("linux")) {
+    questionsPool = linuxQuestions;
+  } else if (trimmedDomain === "git" || trimmedDomain.includes("git")) {
+    questionsPool = gitQuestions;
+  } else if (trimmedDomain === "aws" || trimmedDomain.includes("aws")) {
+    questionsPool = awsQuestions;
+  } else if (trimmedDomain === "cloud computing" || trimmedDomain.includes("cloud computing") || trimmedDomain === "cloud") {
+    questionsPool = awsQuestions;
+  }
+
+  console.log(`Question bank called for: ${actualDomain} (Count requested/decided: ${count})`);
+
+  // If matched a curated static question bank
+  if (questionsPool.length > 0) {
+    const shuffled = [...questionsPool].sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, count);
+
+    const questions = selected.map((q, idx) => ({
+      id: q.id || (idx + 1),
+      question: q.question,
+      text: q.question, // Backwards compatibility for frontend map((q) => q.text)
+      answer: q.answer
+    }));
+
+    return res.status(200).json({
+      domain: actualDomain,
+      questions
+    });
+  }
+
+  // Fallback: If domain not in static bank, check for Gemini client, else use simulated pool
+  const client = getGeminiClient();
+  if (client) {
+    try {
+      const prompt = `Generate a set of exactly ${count} distinct, beginner-friendly interview questions with answers for the domain/technology: "${actualDomain}".
+${actualCustomTopic ? `Focus topics: "${actualCustomTopic}".` : ""}
+Ensure the questions are clear, practical, and beginner-friendly, and the answers are simple, clear, and educational.`;
+
+      const response = await client.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: "You are an elite developer and interviewer. Generate beginner-friendly, highly accurate interview questions and answers for the requested technology/domain in clean JSON format.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                id: { type: Type.INTEGER, description: "Sequential question ID" },
+                question: { type: Type.STRING, description: "The interview question content" },
+                answer: { type: Type.STRING, description: "The beginner-friendly answer" }
+              },
+              required: ["id", "question", "answer"]
+            }
+          }
+        }
+      });
+
+      const bodyText = response.text;
+      if (bodyText) {
+        const aiQuestions = parseCleanJSON(bodyText);
+        if (Array.isArray(aiQuestions) && aiQuestions.length > 0) {
+          return res.status(200).json({
+            domain: actualDomain,
+            questions: aiQuestions.slice(0, count).map((q, idx) => ({
+              id: q.id || (idx + 1),
+              question: q.question,
+              text: q.question,
+              answer: q.answer
+            }))
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Gemini fallback failed in question-bank, falling back to simulated pool:", err);
+    }
+  }
+
+  // Simulated fallback using getQuestionBankPool from _utils.ts
   const pool = getQuestionBankPool(actualDomain, "Software Engineer", "Medium", "Standard", actualCustomTopic);
-  
-  console.log("Question bank called:", actualDomain);
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, count);
+
   return res.status(200).json({
     domain: actualDomain,
-    questions: pool.map((text, idx) => ({ id: idx + 1, text }))
+    questions: selected.map((text, idx) => ({
+      id: idx + 1,
+      question: text,
+      text: text,
+      answer: "To answer this, share your experience with this technology, highlighting best practices and common pitfalls."
+    }))
   });
 }
+

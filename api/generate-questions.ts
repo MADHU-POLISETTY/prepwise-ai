@@ -15,7 +15,7 @@ export default async function handler(req: any, res: any) {
     category, 
     domain, 
     difficulty = "Medium", 
-    numQuestions = 5, 
+    numQuestions: rawNumQuestions = 5, 
     role = "Software Engineer", 
     company = "Standard", 
     customTopic = "",
@@ -23,6 +23,8 @@ export default async function handler(req: any, res: any) {
     questionMode = "hybrid", // "ai" | "bank" | "hybrid"
     pinnedQuestions = [] // Specific question texts selected by the user to be included
   } = req.body;
+
+  const numQuestions = parseInt(rawNumQuestions as any, 10) || 5;
 
   // Align domain and category
   const selectedDomain = domain || category || "Technical";

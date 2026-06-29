@@ -216,266 +216,266 @@ function generateFallbackIdealAnswer(question: string): string {
 
   // Java Pool
   if (q.includes("core pillars of oop") || q.includes("encapsulation improve maintainability")) {
-    return "The four core pillars of Object-Oriented Programming (OOP) in Java are Encapsulation, Inheritance, Polymorphism, and Abstraction. Encapsulation is the practice of wrapping data (variables) and code (methods) together as a single unit. In Java, we achieve this by making class variables private and exposing them through public getter and setter methods. Encapsulation improves maintainability by hiding the internal state of an object and restricting direct access. This prevents external code from accidentally corrupting the object's state and allows you to change the internal implementation without breaking other parts of the application. For example, you can add validation logic inside a setter method to ensure data integrity.";
+    return "The 4 main ideas of Object-Oriented Programming (OOP) in Java are:\n- **Encapsulation**: Keeping data safe inside a class by using private variables and public getter/setter methods. This stops other code from messing up your data.\n- **Inheritance**: Letting a new class copy features from an existing class to save time and reuse code.\n- **Polymorphism**: Letting different classes use the same method name but behave in their own way.\n- **Abstraction**: Hiding complex inner details and only showing what is needed.\nThese help you write clean, organized, and easy-to-fix code.";
   }
   if (q.includes("differences between list, set, and map") || (q.includes("hashmap") && q.includes("treemap"))) {
-    return "In the Java Collections Framework, List, Set, and Map serve different purposes. A List is an ordered collection that allows duplicate elements (e.g., ArrayList). A Set is an unordered collection that prohibits duplicate elements (e.g., HashSet). A Map stores key-value pairs where each unique key maps to a single value (e.g., HashMap). You would choose a HashMap over a TreeMap when you need fast, constant-time performance (O(1)) for basic operations like insert, delete, and locate, and do not care about the order of the keys. In contrast, TreeMap maintains its keys in sorted order but has a higher time complexity of O(log n) for these operations.";
+    return "In Java, we use List, Set, and Map to store collections of data:\n- **List**: Stores items in a specific order and allows duplicate items (like a shopping list). Example: ArrayList.\n- **Set**: Stores unique items in no specific order and does not allow duplicate items. Example: HashSet.\n- **Map**: Stores items as key-value pairs (like a dictionary where you look up a word/key to get its meaning/value). Example: HashMap.\nYou should choose HashMap because it is super fast for finding and saving things. Use TreeMap only if you want your keys to be automatically sorted, but note that it is slightly slower.";
   }
   if (q.includes("volatile variables") || q.includes("memory visibility in java")) {
-    return "In Java multithreading, volatile variables and synchronized blocks ensure memory visibility and thread coordination. By default, threads may cache variables locally for performance. Marking a variable as volatile guarantees that every read and write goes directly to main memory, ensuring all threads see the most up-to-date value instantly. However, volatile only ensures visibility, not atomicity. For operations that require multiple steps to be executed safely, synchronized blocks are used. A synchronized block locks an object, allowing only one thread to execute the code at a time. This guarantees both visibility and atomicity, preventing race conditions when multiple threads modify shared resources.";
+    return "In Java multithreading (running multiple tasks at once), we use these to keep variables safe:\n- **Volatile**: A keyword that tells Java to read and write a variable directly from the main computer memory, not from a local cache. This makes sure all threads see changes instantly.\n- **Synchronized**: A block of code that only one thread can run at a time. It locks the resource so threads don't overwrite each other's work and cause bugs.";
   }
   if (q.includes("modern exception handling") || q.includes("checked and unchecked exceptions")) {
-    return "Java's exception handling uses try, catch, finally, and throw blocks to handle runtime errors gracefully. Exceptions are divided into checked and unchecked exceptions. Checked exceptions are checked at compile-time. The compiler forces you to handle them using a try-catch block or declare them in the method signature using the 'throws' keyword. Examples include IOException and SQLException. Unchecked exceptions, also called runtime exceptions, inherit from RuntimeException and are not checked at compile-time. They usually occur due to programming mistakes, such as NullPointerException or ArrayIndexOutOfBoundsException. You do not have to declare or catch unchecked exceptions, but it is good practice to write code that avoids them.";
+    return "Exceptions are errors that happen when your program runs. We handle them using try-catch blocks to prevent crashes:\n- **Checked Exceptions**: Errors the Java compiler forces you to handle before running the program (like missing files - IOException).\n- **Unchecked Exceptions**: Runtime errors that happen due to coding mistakes (like dividing by zero or NullPointerException). You don't have to declare these, but you should write code that avoids them.";
   }
   if (q.includes("jdbc") || q.includes("connection pooling")) {
-    return "JDBC (Java Database Connectivity) is a standard Java API that allows applications to connect to and interact with relational databases. Opening and closing a database connection for every query is extremely slow and resource-heavy because of the network handshake. Connection pooling solves this issue by creating a cache of reusable database connections when the application starts. When a query needs to run, the application borrows an active connection from the pool, runs the query, and returns the connection to the pool. This eliminates the delay of creating new connections, reducing database read/write latency and improving overall application performance. Popular connection pooling libraries include HikariCP.";
+    return "JDBC is how Java connects to databases to read or write data. Since opening a new connection for every single query is very slow, we use **Connection Pooling**. This keeps a small group (pool) of active connections open and ready to use. When your app needs to run a query, it borrows a connection from the pool and returns it immediately after, making database operations much faster.";
   }
   if (q.includes("spring boot") || q.includes("dependency injection")) {
-    return "Spring Boot simplifies Java enterprise development through dependency injection (DI) and auto-configuration. Dependency injection allows the Spring container to automatically manage and inject objects (beans) into your classes using annotations like @Autowired, reducing manual object creation. Spring Boot goes a step further by offering auto-configuration, which automatically sets up your application based on the starter dependencies (like spring-boot-starter-web) added to your project. It configures default settings, such as an embedded Tomcat server, database connections, and security, removing the need for complex XML configurations. This allows developers to focus entirely on writing business logic quickly.";
+    return "Spring Boot makes building Java apps much easier using two key features:\n- **Dependency Injection (DI)**: Letting Spring automatically create and handle objects for you using simple annotations like `@Autowired`, so you don't have to write `new Object()` everywhere.\n- **Auto-configuration**: Spring Boot automatically configures default settings (like a web server and database connections) based on the starter packages you add, so you can start writing code right away.";
   }
   if (q.includes("jvm") || q.includes("garbage collector")) {
-    return "The Java Virtual Machine (JVM) consists of three main components: the Class Loader, the Runtime Data Areas (Memory), and the Execution Engine. The Class Loader loads Java classes into memory. The Runtime Data Areas divide memory into the Stack (for thread-specific local variables) and the Heap (for objects). The Execution Engine runs the compiled bytecode. The Garbage Collector (GC) is part of the Execution Engine and automatically manages memory on the Heap. It identifies which objects are still in use by tracking active references. Objects that are no longer referenced are marked as garbage and deleted to free up memory, preventing memory leaks and manual memory management.";
+    return "The Java Virtual Machine (JVM) is what runs your Java program. It has three main parts:\n- **Class Loader**: Loads your code files.\n- **Memory Areas (Stack and Heap)**: The Stack holds temporary local variables, while the Heap stores all created objects.\n- **Garbage Collector**: Automatically looks for objects on the Heap that are no longer being used and deletes them to free up computer memory.";
   }
   if (q.includes("heap vs. stack") || q.includes("outofmemoryerror")) {
-    return "In Java, memory is divided into the Heap and the Stack. The Stack is used for static memory allocation and thread execution. It stores primitive variables and references to objects, with memory allocated and freed in a LIFO (Last In, First Out) order. The Heap is used for dynamic memory allocation, storing all actual objects created during runtime. To prevent OutOfMemoryError, you should avoid holding references to objects that are no longer needed, allowing the Garbage Collector to clean them up. Additionally, you should avoid creating unnecessary large objects in loops, use streaming instead of loading whole datasets into memory, and configure appropriate JVM memory sizes using arguments like -Xmx.";
+    return "Java uses two types of memory:\n- **Stack**: Very fast, small memory used to store simple variables and active function calls.\n- **Heap**: Larger memory used to store all your actual objects.\nIf your app runs out of Heap space, you get an `OutOfMemoryError`. To avoid this, don't keep hold of objects you no longer need, avoid creating too many large objects inside loops, and let the Garbage Collector do its job.";
   }
   if (q.includes("java 8 features") || q.includes("streams api") || q.includes("lambda expressions")) {
-    return "Java 8 introduced major features to support functional programming. A functional interface is an interface that contains exactly one abstract method, such as Runnable or Predicate. Lambda expressions provide a clear and concise way to implement these functional interfaces without writing anonymous classes. The Streams API was introduced to process collections of objects in a declarative manner. It allows developers to perform operations like filtering, mapping, and sorting on data sequences efficiently and concurrently. Together, these features make Java code much more readable, reduce boilerplate code, and make parallel data processing extremely simple to write.";
+    return "Java 8 added powerful features for modern coding:\n- **Lambda Expressions**: A shortcut way to write small, anonymous functions in a single line.\n- **Functional Interface**: An interface with only one method (perfect for Lambdas).\n- **Streams API**: A clean, beginner-friendly way to process lists of data (like filtering, sorting, or mapping items) without writing long, messy loops.";
   }
   if (q.includes("singleton or factory") || q.includes("design pattern")) {
-    return "In Java, design patterns help solve common software design problems. The Singleton pattern ensures a class has only one instance and provides a global point of access to it. It is implemented by making the constructor private and providing a public static method that returns the single instance, often using double-checked locking for thread safety. The Factory pattern is a creational pattern used to create objects without exposing the instantiation logic to the client. Instead of using the 'new' keyword directly, the client calls a factory method, which returns an instance of a shared interface. This promotes loose coupling and simplifies object creation.";
+    return "Design patterns are standard templates for solving common coding problems:\n- **Singleton Pattern**: Ensures a class can only ever have one single object (instance) created. We use this for shared resources like database connections.\n- **Factory Pattern**: A way to create objects without using the `new` keyword directly. Instead, you call a 'factory' helper method, which gives you the correct object, keeping your code flexible.";
   }
 
   // Python Pool
   if (q.includes("oop (object-oriented programming) in python") || q.includes("inheritance and polymorphism")) {
-    return "Object-Oriented Programming (OOP) in Python organizes code around objects and classes. A class is a blueprint, and an object is an instance of that blueprint. Python supports inheritance, which allows a new child class to adopt the attributes and methods of an existing parent class, promoting code reuse. Polymorphism allows different classes to have methods with the same name but different behaviors, so the correct method is called automatically based on the object. Python also supports encapsulation to protect data by prefixing attributes with double underscores to make them private, and abstraction to hide complex details using abstract classes from the abc module.";
+    return "Object-Oriented Programming (OOP) is a way to organize code into classes (blueprints) and objects (instances):\n- **Inheritance**: Letting a new child class copy methods and attributes from a parent class to reuse code.\n- **Polymorphism**: Letting different classes use the exact same function name but execute different actions.\n- **Encapsulation**: Hiding private data from external code using double underscores `__`.\n- **Abstraction**: Showing only the simple, necessary details.";
   }
   if (q.includes("decorators in python") || q.includes("custom decorator")) {
-    return "A decorator in Python is a design pattern that allows you to modify or extend the behavior of a function or method without changing its actual code. Decorators wrap another function, executing code before and after the wrapped function runs. To write a custom decorator to measure execution time, you import the time module, define a nested wrapper function inside the decorator, record the start time, execute the original function, record the end time, calculate the difference, print it, and return the function's result. This is extremely useful for logging, authentication, and performance monitoring.";
+    return "A **Decorator** is a special Python feature that lets you modify or add behavior to a function without changing its actual code. It wraps the original function. For example, to make a custom decorator to measure execution time, you write a function that notes the start time, runs the target function, notes the end time, prints the difference, and returns the result.";
   }
   if (q.includes("python generators") || q.includes("memory-efficient compared to normal list returns")) {
-    return "Python generators are special functions that return an iterator and generate values on the fly, one at a time, instead of storing them all in memory. They are defined using the 'yield' keyword instead of 'return'. When a generator function is called, it pauses its execution and saves its state, resuming from that exact spot the next time a value is requested. This makes generators highly memory-efficient because they do not build and keep the entire list in memory. For example, iterating over a list of a million items requires substantial memory, whereas a generator only consumes memory for a single item at any given time.";
+    return "Python **Generators** are special functions that yield values one at a time using the `yield` keyword instead of returning a whole list at once. They are extremely memory-efficient. If you have a list of one million items, a standard list loads all of them into memory at once, which can crash your app. A generator only creates one item at a time as you ask for it, using almost zero memory.";
   }
   if (q.includes("list comprehension in python") || q.includes("squared_evens")) {
-    return "A list comprehension in Python offers a concise syntax to create lists. To filter and square even numbers, you can write: `squared_evens = [x**2 for x in numbers if x % 2 == 0]`. This single line replaces a multi-line loop. Its performance advantage comes from the fact that list comprehensions are optimized internally in C-level Python bytecode. They avoid the overhead of repeatedly calling the list's append method inside a standard for-loop, resulting in faster execution times. It also makes the code much more readable and pythonic when dealing with simple mapping and filtering tasks.";
+    return "A **List Comprehension** is a neat, one-line way to create new lists in Python. For example: `squared_evens = [x**2 for x in numbers if x % 2 == 0]`. It replaces a longer `for` loop and `if` statement. It also runs faster because Python optimizes it internally under the hood, making it both faster and cleaner.";
   }
   if (q.includes("vector operations") || q.includes("numpy array structures")) {
-    return "NumPy is a powerful Python library designed for scientific computing. Unlike standard Python lists, NumPy arrays support vectorized operations, which allow you to perform arithmetic operations element-wise on entire arrays without using slow loops. For instance, adding two arrays `A + B` automatically adds corresponding elements. For matrix multiplication, NumPy provides the `@` operator or the `np.dot()` function. NumPy achieves high performance through 'vectorization' and 'broadcasting', executing operations in compiled C-code underneath. This makes numerical computations and data processing on large datasets incredibly fast and memory-efficient.";
+    return "**NumPy** is a popular Python library for math and data science. Unlike normal Python lists, NumPy arrays allow **vectorized operations**. This means you can add, subtract, or multiply entire arrays at once (like `A + B`) without using slow `for` loops. NumPy does this by running fast, pre-compiled C code in the background, making it extremely fast for handling large numbers.";
   }
   if (q.includes("pandas dataframes") || q.includes("missing values")) {
-    return "A Pandas DataFrame is a two-dimensional, tabular data structure with labeled rows and columns, similar to an Excel sheet or SQL table. To handle missing values, Pandas provides methods like `df.dropna()` to remove rows with null values, or `df.fillna(value)` to replace missing cells with a default value or column mean. To perform groupings and aggregate data, you use `df.groupby('column_name').mean()`. This groups the rows by a specific category and calculates a statistic (like average or sum) for each group, making data analysis and exploration simple and efficient.";
+    return "A **Pandas DataFrame** is like an Excel table with rows and columns. To handle missing (null) values, you can use:\n- `df.dropna()` to delete rows with missing data.\n- `df.fillna(value)` to fill empty spaces with a default value (like 0 or the average).\nTo group and average data, use `df.groupby('column').mean()`, which groups your data and calculates the average for each category.";
   }
   if (q.includes("flask framework") || q.includes("simple rest api endpoint")) {
-    return "Flask is a lightweight micro-framework in Python. To design a simple REST API endpoint, you import Flask and jsonify, initialize the app, and define a route using the `@app.route` decorator, specifying the HTTP method (e.g., GET or POST). Inside the associated function, you fetch or process your data and return it wrapped in `jsonify(data)` along with an HTTP status code, such as 200 for success. Finally, you run the application. Flask handles routing and response serialization automatically, making it easy to build simple, modular microservices in a clean and understandable way.";
+    return "**Flask** is a very lightweight and simple tool to build web apps in Python. To create a simple API endpoint:\n- Import Flask and jsonify.\n- Use `@app.route('/api', methods=['GET'])` to set up a web URL.\n- Inside the function, return your data as `jsonify(data)`.\nFlask automatically handles the web request and returns the data in a standard format (JSON) that other apps can understand.";
   }
   if (q.includes("django") || q.includes("mvt")) {
-    return "Django is a high-level Python framework that follows the Model-View-Template (MVT) architectural pattern. The Model represents the data structure and interacts with the database using Django's built-in Object-Relational Mapper (ORM). The View handles the business logic, receives HTTP requests, interacts with the Model to fetch data, and determines which template to render. The Template is the presentation layer, containing HTML and special template tags to display dynamic data to the user. Django routes incoming URLs to the appropriate View, which coordinates the Model and Template to return a complete response, promoting clean separation of concerns.";
+    return "**Django** is a powerful Python web framework that comes with everything built-in. It uses the **MVT (Model-View-Template)** layout:\n- **Model**: Defines your database tables and manages your data.\n- **View**: Contains the main logic, receives web requests, gets data from the Model, and sends it to the Template.\n- **Template**: The HTML page that the user sees on their screen.";
   }
   if (q.includes("try-except-finally blocks") || q.includes("custom exceptions")) {
-    return "In Python, we handle runtime errors using try-except-finally blocks to keep the application from crashing. The 'try' block contains the code that might throw an error. The 'except' block catches and handles specific exceptions, such as ValueError or ZeroDivisionError. The 'finally' block executes cleanup code that must run regardless of whether an exception occurred, like closing a database connection. Custom exceptions are user-defined error classes that inherit from Python's built-in Exception class. Creating custom exceptions improves code readability by providing domain-specific error messages that explain exactly what went wrong in your application.";
+    return "In Python, we handle errors using try-except blocks to stop our program from crashing:\n- **try**: Holds the code that might fail.\n- **except**: Catches and handles specific errors (like dividing by zero).\n- **finally**: Code that runs no matter what (like closing a database).\nYou can also create **Custom Exceptions** (your own error types) to make your code easier to read and debug.";
   }
   if (q.includes("deep copy and shallow copy") || q.includes("manage references")) {
-    return "In Python, variables are references to objects in memory. When you copy an object, you can perform a shallow copy or a deep copy. A shallow copy creates a new outer object, but copies references to any nested objects inside it. This means changes to a nested object in the copy will affect the original. A deep copy, created using `copy.deepcopy()`, recursively copies the outer object and all nested objects, making them completely independent. Python manages memory using reference counting and a garbage collector to delete objects when their reference count drops to zero, preventing memory leaks.";
+    return "In Python, variables point to objects in memory:\n- **Shallow Copy**: Copies the main object, but keeps references to nested items. If you change a nested item in the copy, the original changes too.\n- **Deep Copy**: Copies absolutely everything, including all nested items. The copy is completely independent of the original.\nPython automatically cleans up memory using a reference counter to delete objects that are no longer used.";
   }
 
   // AWS Pool
   if (q.includes("amazon ec2") || q.includes("on-demand and spot instances")) {
-    return "Amazon Elastic Compute Cloud (EC2) provides secure, resizable virtual servers in the cloud, allowing you to launch and scale instances within minutes. On-Demand instances charge a fixed rate per second or hour with no long-term commitment, making them perfect for unpredictable workloads. Spot instances allow you to bid on spare AWS compute capacity at discounts of up to 90% off On-Demand prices. However, Spot instances can be terminated by AWS with a 2-minute warning if the capacity is needed elsewhere. You should use Spot instances for flexible, fault-tolerant tasks like batch processing or data analysis.";
+    return "**Amazon EC2** is where you rent virtual computers in the cloud to run your applications.\n- **On-Demand Instances**: You pay a fixed price per hour with no commitments. You can start and stop them whenever you want.\n- **Spot Instances**: You bid on spare, unused AWS computers at a massive discount (up to 90%). However, AWS can take them back with a 2-minute warning if someone else needs them. Use Spot instances for tasks that can be paused safely.";
   }
   if (q.includes("amazon s3") || q.includes("bucket policies")) {
-    return "Amazon Simple Storage Service (S3) is an object storage service offering industry-leading scalability, data availability, and security. Bucket policies are JSON documents that define access permissions, controlling who can read or write objects. Versioning keeps multiple historical versions of an object in the same bucket, protecting against accidental deletions or overwrites. Lifecycle rules optimize storage costs by automatically moving objects to cheaper storage classes (like S3 Glacier) or deleting them after a specified period. This helps organize data efficiently while reducing monthly cloud hosting costs.";
+    return "**Amazon S3** is a simple, highly secure cloud storage system where you can upload files, images, and videos.\n- **Bucket Policies**: Rules that define who can view or modify your uploaded files.\n- **Versioning**: Saves older versions of your files so you can recover them if deleted by accident.\n- **Lifecycle Rules**: Automatically deletes old files or moves them to cheaper, long-term storage to save you money.";
   }
   if (q.includes("vpc") || q.includes("public and private subnets")) {
-    return "To securely configure a Virtual Private Cloud (VPC), you split its network range into public and private subnets. Public subnets host resources that must be directly accessible from the internet, such as load balancers, and are connected to an Internet Gateway. Private subnets host sensitive backend resources like databases and application servers. To allow private subnet resources to securely download updates without exposing them to incoming internet traffic, you route their outbound traffic through a NAT Gateway placed in a public subnet. Security groups and network ACLs are configured to restrict traffic to only authorized ports.";
+    return "A **VPC (Virtual Private Cloud)** is your own private network in AWS. To keep things secure, you split it into:\n- **Public Subnet**: Connected to the internet (e.g., for load balancers or public websites).\n- **Private Subnet**: Completely disconnected from the public internet to keep databases and backend servers safe. Outbound updates go through a secure NAT Gateway.";
   }
   if (q.includes("iam roles") || q.includes("least privilege in aws")) {
-    return "AWS Identity and Access Management (IAM) controls access to AWS resources. An IAM User represents a specific person or application with static credentials like passwords or API keys. An IAM Role has no permanent credentials and is assumed temporarily by services or users to perform tasks securely. IAM Policies are JSON documents that define permissions (actions allowed or denied on resources). To apply the principle of least privilege, you grant only the minimum permissions necessary for a user or role to complete their task, avoiding broad administrator access and ensuring secure access control.";
+    return "**IAM** manages who can access your AWS resources:\n- **IAM Users**: Individual people or accounts with permanent passwords or keys.\n- **IAM Roles**: Temporary permissions that services or users can assume safely.\n- **Principle of Least Privilege**: A security rule that says you should only give users the absolute minimum permissions they need to do their job, preventing accidents or security leaks.";
   }
   if (q.includes("amazon rds") || q.includes("multi-az replication")) {
-    return "Amazon Relational Database Service (RDS) simplifies database administration tasks like patching, backups, and scaling. Configuring RDS with Multi-AZ (Availability Zone) replication provides high availability and disaster recovery. AWS automatically creates a primary database instance and synchronously replicates data to a standby instance in a different Availability Zone. If the primary instance fails, experiences a network outage, or undergoes maintenance, RDS automatically fails over to the standby instance without manual intervention or data loss. This keeps your application running smoothly with minimal downtime.";
+    return "**Amazon RDS** makes it easy to set up and run databases in the cloud. By enabling **Multi-AZ (Availability Zone)** replication, AWS automatically copies your database to a second database in a different physical location. If your main database goes down due to a power outage or error, RDS instantly switches to the backup database with zero downtime.";
   }
   if (q.includes("route 53") || q.includes("global dns resolution")) {
-    return "Amazon Route 53 is a highly available and scalable Domain Name System (DNS) web service. It translates human-readable domain names into IP addresses. Route 53 manages global DNS resolution using routing policies. For high availability, you can configure a Failover Routing Policy. This routes traffic to a primary resource (such as an active load balancer) as long as it is healthy. Route 53 constantly monitors the primary resource using health checks. If the primary resource fails a health check, Route 53 automatically redirects DNS queries to a healthy standby resource in another region, ensuring continuous application availability.";
+    return "**Amazon Route 53** is AWS's cloud DNS service. It translates human-friendly website names (like `mysite.com`) into computer IP addresses. It helps keep your app online by checking if your servers are healthy. If a server fails, Route 53 automatically redirects visitors to a healthy backup server in a different location.";
   }
   if (q.includes("application load balancers") || q.includes("distributing incoming application traffic")) {
-    return "An Application Load Balancer (ALB) operates at the application layer (Layer 7) of the OSI model. Its primary role is to distribute incoming HTTP and HTTPS traffic across multiple targets, such as EC2 instances, containers, and IP addresses, grouped into Target Groups. ALB performs health checks on these targets, automatically routing traffic only to healthy instances. It supports advanced routing features, such as path-based routing (e.g., routing `/api` traffic to a different target group than `/images`) and host-based routing, helping you build highly scalable and fault-tolerant microservice architectures.";
+    return "An **Application Load Balancer (ALB)** acts as a traffic cop. When thousands of users visit your website, the ALB distributes the traffic evenly across all your healthy servers so no single server gets overloaded. It also performs continuous health checks and automatically stops sending traffic to any server that is broken or offline.";
   }
   if (q.includes("aws auto scaling") || q.includes("adjust ec2 capacity")) {
-    return "AWS Auto Scaling monitors your applications and automatically adjusts Amazon EC2 capacity to maintain steady, predictable performance at the lowest possible cost. You define an Auto Scaling Group (ASG) with a minimum, maximum, and desired number of EC2 instances. You then configure scaling policies based on dynamic demand metrics from CloudWatch, such as average CPU utilization. If CPU usage exceeds 70%, Auto Scaling launches new EC2 instances to share the load. When demand drops and CPU usage falls, it terminates excess instances, saving money while ensuring your application remains responsive.";
+    return "**AWS Auto Scaling** automatically adds or removes servers based on real-time traffic demand. For example, if your website suddenly gets a huge spike in visitors and CPU usage goes above 70%, Auto Scaling instantly launches new EC2 servers to handle the load. When visitors leave, it automatically shuts down the extra servers to save you money.";
   }
   if (q.includes("serverless computing on aws") || q.includes("aws lambda operates")) {
-    return "Serverless computing allows developers to build and run applications without managing underlying servers or operating systems. AWS Lambda is a serverless compute service that runs your code in response to events, such as file uploads to S3, updates to DynamoDB tables, or API requests through API Gateway. Lambda operates on a pay-as-you-go model, charging only for the exact milliseconds your code runs. It scales automatically by launching separate execution environments for each incoming request. This ensures high performance during traffic spikes and scales down to zero when there is no activity.";
+    return "**Serverless Computing** means you write and upload code without worrying about managing any servers or operating systems. **AWS Lambda** is a serverless service that runs your code only when triggered by an event (like a user uploading an image). You only pay for the exact milliseconds your code runs, and it automatically scales to handle any number of requests.";
   }
   if (q.includes("cloudwatch") || q.includes("monitor infrastructure metrics")) {
-    return "Amazon CloudWatch is a monitoring and management service designed for AWS resources and applications. It automatically collects and visualizes metrics like CPU usage, network activity, and disk reads from services such as EC2 and RDS. To monitor your system proactively, you can set up custom CloudWatch Alarms. You define thresholds for specific metrics, such as a CPU usage exceeding 80% for five minutes. When the threshold is crossed, the alarm triggers and automatically sends a notification through Amazon SNS (Simple Notification Service) or initiates an auto-scaling action to resolve the issue.";
+    return "**Amazon CloudWatch** is a tool that monitors your AWS resources (like CPU, memory, and database speed). You can set up **CloudWatch Alarms** that trigger when something goes wrong (for example, if a server's CPU is too high for 5 minutes). The alarm can automatically send you an email alert or trigger Auto Scaling to add another server.";
   }
 
   // DevOps Pool
   if (q.includes("ci/cd") && q.includes("continuous automated software delivery")) {
-    return "CI/CD stands for Continuous Integration and Continuous Deployment. Continuous Integration is the practice of automatically merging code changes from multiple developers into a shared repository, running automated tests to catch bugs early. Continuous Deployment automatically deploys those tested changes to production. This pipeline is crucial because it eliminates slow, manual deployment errors, shortens the software release cycle, and provides instant feedback to developers. It ensures that the production application is always in a stable, deployable state, allowing teams to deliver updates and hotfixes to users quickly and reliably.";
+    return "**CI/CD** stands for Continuous Integration and Continuous Deployment.\n- **Continuous Integration (CI)**: Automatically compiles your code and runs tests every time you make a change, helping catch bugs early.\n- **Continuous Deployment (CD)**: Automatically deploys your tested code to your live website.\nThis saves developers from having to deploy code manually, prevents errors, and lets you release updates to users much faster.";
   }
   if (q.includes("jenkins") || q.includes("declarative pipelines")) {
-    return "Jenkins is an open-source automation server used to build CI/CD pipelines. It uses a file called a 'Jenkinsfile' written in either Declarative or Scripted syntax to define the pipeline steps. In a typical pipeline, Jenkins pulls the latest code from Git, compiles the application, runs automated unit and integration tests, and packages the app. For secure deployments, Jenkins uses its Credentials Manager to store passwords, API keys, and SSH keys encrypted. These keys are injected into the pipeline at runtime without exposing them in the source code. This ensures safe and secure deployments to cloud platforms or servers.";
+    return "**Jenkins** is a popular automation tool used to build CI/CD pipelines. It uses a text file called a **Jenkinsfile** (written in simple, structured steps) to define how your code is built, tested, and deployed. It also securely stores your database passwords, SSH keys, and API credentials, injecting them safely during the deployment process without exposing them in your code.";
   }
   if (q.includes("docker image") && q.includes("running docker container")) {
-    return "A Docker image is a read-only template that contains the application code, libraries, and dependencies needed to run an application. A Docker container is a live, running instance of that image, created by adding a thin read-write layer on top of the read-only image layers. Docker images are built in sequential layers specified by a Dockerfile. When you rebuild an image, Docker caches each layer. If a layer and the ones before it haven't changed, Docker reuses the cached layer instead of rebuilding it. This optimization speeds up the build process and reduces bandwidth and storage usage.";
+    return "**Docker** makes it easy to run applications anywhere:\n- **Docker Image**: A frozen, read-only template containing your application code, libraries, and settings (like a recipe).\n- **Docker Container**: A live, running instance of that image (like the baked cake).\nDocker speeds up builds by caching unchanged layers, so it only rebuilds parts of your app that have actually changed.";
   }
   if (q.includes("kubernetes") && q.includes("pods, deployments, and services")) {
-    return "Kubernetes is an open-source container orchestration platform designed to automate deploying, scaling, and managing containerized applications. A Pod is the smallest deployable unit in Kubernetes, hosting one or more closely related containers that share storage and network resources. A Deployment is a controller that manages the lifecycle of Pods, ensuring the desired number of replicas are always running and handling zero-downtime updates. A Service defines a logical set of Pods and a policy to access them, providing a stable IP address and load balancing to route traffic to the correct healthy containers.";
+    return "**Kubernetes** is a tool that manages and coordinates your Docker containers:\n- **Pod**: The smallest unit, holding one or more containers.\n- **Deployment**: A manager that ensures the exact number of pods you want are always running and healthy.\n- **Service**: Gives your pods a single, permanent IP address so other parts of your app can talk to them easily.";
   }
   if (q.includes("terraform") && q.includes("state locking")) {
-    return "Terraform is an open-source Infrastructure as Code (IaC) tool that allows developers to define and provision cloud resources using a simple declarative configuration language. Terraform tracks the state of your real-world resources in a state file (`terraform.tfstate`). To prevent multiple team members from running configurations at the same time and causing deployment conflicts, Terraform uses state locking. When a developer starts a deployment, Terraform acquires a lock on the state file (usually stored in a secure backend like Amazon S3 or Consul). Other developers cannot make changes until the lock is released, ensuring data integrity.";
+    return "**Terraform** is an Infrastructure as Code (IaC) tool that lets you set up cloud resources (like AWS servers) by writing simple text files. It tracks everything in a **state file**. To prevent two developers from running Terraform at the same time and messing up the cloud settings, it uses **state locking**, which temporarily locks the file until the current setup is finished.";
   }
   if (q.includes("git branching strategies") || q.includes("gitflow")) {
-    return "Git branching strategies help teams manage code changes efficiently. In GitFlow, developers work on dedicated feature branches, which are merged into a 'develop' branch. Releases are prepared on 'release' branches before being merged into the 'main' branch for production. This is highly structured and great for scheduled releases. In trunk-based development, developers merge small, frequent updates directly into a single central branch called 'trunk' or 'main'. This strategy relies heavily on automated testing and feature flags to keep the main branch deployable, promoting rapid integration, faster feedback loops, and continuous deployment.";
+    return "Branching strategies help teams work on the same code without conflicts:\n- **GitFlow**: A structured setup where feature development happens on 'feature' branches, merged into a 'develop' branch, and finally put into the 'main' branch for release.\n- **Trunk-based Development**: A faster approach where developers push small, frequent updates directly to the main branch daily, relying on automated tests and feature toggles to keep things stable.";
   }
   if (q.includes("linux commands for diagnosing") || q.includes("cpu usage, memory bottlenecks")) {
-    return "To diagnose system performance issues on Linux, developers use several essential commands. The `top` or `htop` command displays real-time CPU and memory usage, showing which processes are consuming the most resources. The `free -m` command shows total, used, and available physical memory in megabytes. To investigate disk space and read/write bottlenecks, `df -h` and `iostat` are used. For network and file issues, `lsof` lists open files and network connections, helping identify leaked file descriptors, while `ps aux` provides a snapshot of all active processes. These commands help administrators troubleshoot and resolve system slowdowns quickly.";
+    return "If your Linux server is running slowly, you can use these simple commands to troubleshoot:\n- `top` or `htop`: Shows real-time CPU and memory usage of running apps.\n- `free -m`: Shows how much RAM is free and used in megabytes.\n- `df -h`: Shows how much hard disk space is left.\n- `ps aux`: Lists all active tasks on the system.";
   }
   if (q.includes("proactive infrastructure monitoring") || q.includes("prometheus and grafana")) {
-    return "Proactive monitoring is critical because it helps developers detect and resolve infrastructure issues before they affect end users. Prometheus is a powerful open-source monitoring tool that collects and stores metrics (such as CPU usage, database query times, and memory consumption) as time-series data at regular intervals. Grafana is a visualization tool that connects to Prometheus to display these metrics in beautifully designed, real-time dashboards. Together, they allow engineering teams to monitor system health, identify performance bottlenecks early, and configure automated alerts to notify team members when metrics cross safe thresholds.";
+    return "Monitoring helps you fix server issues before users notice:\n- **Prometheus**: A tool that automatically collects and saves metrics (like RAM usage or page load times) at regular intervals.\n- **Grafana**: A beautiful dashboard tool that connects to Prometheus to show those metrics in simple, easy-to-read charts and sends alerts if a server goes offline.";
   }
   if (q.includes("ansible") || q.includes("agentless configuration")) {
-    return "Ansible is an open-source configuration management and automation tool. It is 'agentless', meaning you do not need to install any special software or daemons on the target servers it manages. Instead, Ansible connects to target servers securely over standard SSH (for Linux) or WinRM (for Windows). Ansible uses simple, human-readable YAML files called 'Playbooks' to define the desired state of your infrastructure. When you execute a Playbook, Ansible pushes small programs (modules) to the servers, runs the defined tasks sequentially (like installing packages or creating users), and removes them, ensuring consistent, automated system configuration.";
+    return "**Ansible** is an automation tool used to configure and set up servers. It is **agentless**, meaning you don't need to install any special software on your servers; it connects securely using standard SSH. You write your setup steps in simple, human-readable YAML files called **Playbooks** (e.g., 'install Node.js', 'copy config file').";
   }
   if (q.includes("infrastructure as code (iac)") || q.includes("benefits of infrastructure as code")) {
-    return "Infrastructure as Code (IaC) replaces manual, error-prone cloud environment setup with machine-readable definition files. The core benefits include consistency, speed, and version control. Since environments are defined in code, you can easily replicate identical environments (e.g., Development, Testing, and Production), eliminating the 'it works on my machine' problem. IaC allows you to spin up complex cloud resources in minutes instead of hours. Additionally, because IaC files are stored in Git, you can track changes over time, perform code reviews, and roll back to previous stable configurations instantly in case of an error.";
+    return "**Infrastructure as Code (IaC)** means defining your cloud setup (servers, databases, networks) using simple text files instead of clicking around in a browser console. The key benefits are:\n- **Consistency**: You can spin up an identical test server in minutes with zero human error.\n- **Speed**: Automates hours of manual setup.\n- **Version Control**: You can track changes in Git and roll back if something breaks.";
   }
 
   // Cloud Computing Pool
   if (q.includes("iaas, paas, and saas")) {
-    return "Cloud computing offers three main delivery models. Infrastructure as Service (IaaS) provides virtualized computing resources, storage, and networking over the internet. Users manage the operating system, middleware, and applications (e.g., AWS EC2). Platform as a Service (PaaS) provides a pre-configured platform, allowing developers to deploy applications without managing servers or operating systems (e.g., Heroku). Software as a Service (SaaS) delivers complete, fully managed applications directly over the internet through a web browser (e.g., Google Workspace). Use IaaS for maximum control, PaaS for fast development, and SaaS for ready-to-use software.";
+    return "Cloud computing has three main models:\n- **IaaS (Infrastructure as a Service)**: You rent raw hardware and networks (like AWS EC2) and manage the operating system and apps yourself.\n- **PaaS (Platform as a Service)**: The cloud provider manages the servers and OS (like Heroku). You just upload your code.\n- **SaaS (Software as a Service)**: Ready-to-use software running in a browser (like Gmail or Google Docs).";
   }
   if (q.includes("virtualization in cloud") || q.includes("hypervisors")) {
-    return "Virtualization is the foundational technology of cloud computing, allowing a single physical server to be split into multiple independent virtual machines (VMs). This is achieved using a software layer called a Hypervisor. The hypervisor runs directly on the physical hardware (Type 1) or on top of an operating system (Type 2). It allocates CPU, memory, and storage from the physical server to each virtual machine, ensuring complete isolation. This allows multiple different operating systems to run on the same physical hardware simultaneously, maximizing resource utilization, reducing hardware costs, and enabling the rapid scaling required by modern cloud providers.";
+    return "**Virtualization** is the core technology of the cloud. It lets you split one powerful physical computer into multiple virtual computers (VMs). This is done using software called a **Hypervisor**. The hypervisor allocates CPU, RAM, and storage to each VM, keeping them completely isolated so they can run different operating systems on the same physical machine.";
   }
   if (q.includes("public cloud, private cloud") || q.includes("hybrid cloud architectures")) {
-    return "Public, Private, and Hybrid clouds offer different balances of cost and control. Public Cloud resources (like AWS or GCP) are owned and operated by a third-party provider, offering low upfront costs and high scalability, but with shared infrastructure. Private Cloud infrastructure is dedicated solely to one organization, offering maximum security, privacy, and control, but with high maintenance and hardware costs. Hybrid Cloud combines both, allowing data and applications to move between public and private clouds. This enables organizations to keep highly sensitive data secure in their private cloud while using the public cloud for scalable web applications.";
+    return "There are three main ways to deploy cloud resources:\n- **Public Cloud**: Shared infrastructure owned by a provider like AWS or Google Cloud. It's cheap, fast, and highly scalable.\n- **Private Cloud**: Dedicated hardware owned and used by only one company, offering maximum security.\n- **Hybrid Cloud**: A mix of both. Sensitive data is kept in the private cloud, while web traffic scales on the public cloud.";
   }
   if (q.includes("cloud security best practices") || q.includes("protecting data at rest")) {
-    return "Protecting data in the cloud requires robust encryption for both data at rest and data in transit. Data at rest (stored on disks or databases) should be protected using strong encryption standards like AES-256. Cloud providers manage this easily through Key Management Services (KMS). Data in transit (moving over the network) must be encrypted using Transport Layer Security (TLS/HTTPS) to prevent interception. Additionally, standard security practices include implementing Multi-Factor Authentication (MFA), enforcing the principle of least privilege using Identity and Access Management (IAM), performing regular security audits, and setting up firewalls to restrict public network access.";
+    return "To keep cloud data safe:\n- **Data at Rest (on disk)**: Encrypt it using AES-256 (like locking it in a digital safe).\n- **Data in Transit (over network)**: Use secure HTTPS (TLS) connections so hackers can't intercept it.\n- **Access Control**: Enable Multi-Factor Authentication (MFA) and give users the absolute minimum permissions they need.";
   }
   if (q.includes("multi-region cloud") || q.includes("geographical disaster recovery")) {
-    return "A multi-region architecture deploys applications across separate geographic locations (regions), such as US-East and EU-West. This provides high availability and disaster recovery by ensuring that if a natural disaster, power outage, or network failure takes down an entire cloud region, traffic is automatically routed to a healthy region using global DNS services like Route 53. Additionally, placing resources in multiple regions improves performance by serving users from the closest geographic location, reducing latency. Databases are synchronized using active-passive or active-active replication, ensuring data is preserved and accessible even during a major regional outage.";
+    return "A **multi-region** setup means running your app in two or more physical locations (like US-East and Europe). If a natural disaster takes down the entire US data center, your traffic is automatically routed to Europe, keeping your app online. It also makes your app load faster for global users by serving them from the nearest location.";
   }
   if (q.includes("shared responsibility model") || q.includes("patching guest operating systems")) {
-    return "The Shared Responsibility Model defines the security obligations of the cloud provider and the customer. Generally, the provider is responsible for security 'of' the cloud, which includes the physical security of data centers, virtualization software, and physical hardware. The customer is responsible for security 'in' the cloud, protecting their data, configuring firewalls, and managing access. For patching the guest operating system on a virtual server (like AWS EC2), the customer is responsible. However, in serverless or fully managed services (like AWS Lambda or RDS), the cloud provider automatically handles operating system patching and updates.";
+    return "The **Shared Responsibility Model** defines who is responsible for cloud security:\n- **The Provider (like AWS)**: Responsible for the physical data center security, physical servers, and hypervisors.\n- **The Customer (You)**: Responsible for your data, code, and configurations. For virtual servers, you are responsible for updating and patching the operating system.";
   }
   if (q.includes("horizontal scaling vs vertical scaling")) {
-    return "Horizontal scaling (scaling out) adds more servers or instances to your resource pool to share the load. This is appropriate for modern, stateless web applications because it allows for unlimited scaling and provides high fault tolerance by distributing traffic. Vertical scaling (scaling up) adds more power (CPU, RAM) to an existing server. This is appropriate for databases or applications that are difficult to partition, but it has a physical limit and creates a single point of failure. Cloud architectures favor horizontal scaling because auto-scaling groups can automatically add or remove instances based on real-time traffic demand.";
+    return "Scaling means adding more power to handle more users:\n- **Vertical Scaling (Scaling Up)**: Making your existing server bigger (adding more RAM or CPU). This is easy but has physical limits.\n- **Horizontal Scaling (Scaling Out)**: Adding more identical servers to share the load. This is much better because it has no limit and keeps your app online if one server crashes.";
   }
   if (q.includes("content delivery networks") || q.includes("edge caching")) {
-    return "Content Delivery Networks (CDNs) improve website loading times by storing copies of static files (like images, CSS, and videos) in multiple geographic locations called Edge Servers or Points of Presence (PoPs). When a user requests a file, the CDN automatically routes the request to the closest edge server. If the file is cached there, it is delivered instantly, bypassing the main origin server. This edge caching reduces global latency, saves bandwidth, and prevents the main server from becoming overloaded, ensuring a fast, reliable user experience regardless of where the user is located in the world.";
+    return "A **Content Delivery Network (CDN)** speeds up websites by copying your static files (like images and videos) to edge servers all around the world. When a user visits your site, the CDN serves files from the nearest edge server instead of your main server, drastically reducing load times and saving your main server from getting overloaded.";
   }
   if (q.includes("cloud tenant isolation") || q.includes("multi-tenancy")) {
-    return "Cloud tenant isolation ensures that different customers (tenants) sharing the same physical hardware cannot access or modify each other's data and applications. Public cloud providers achieve secure multi-tenancy through multiple layers of isolation. At the hardware level, hypervisors partition physical CPU and memory, ensuring strict boundary limits for virtual machines. At the network level, virtual networks (VPCs) isolate tenant traffic using private subnets, security groups, and routing tables. Additionally, databases and storage services use robust encryption keys managed separately for each tenant, ensuring complete data privacy and security in a shared environment.";
+    return "**Tenant Isolation** is how cloud providers make sure different customers (tenants) sharing the same physical hardware cannot see or edit each other's data. It uses hypervisors to split CPU/RAM, private virtual networks (VPCs) to isolate web traffic, and separate encryption keys so each customer's data is completely private.";
   }
 
   // AI/ML Pool
   if (q.includes("supervised, unsupervised, and reinforcement")) {
-    return "Supervised, unsupervised, and reinforcement learning are the three main types of machine learning. Supervised learning trains a model using labeled data, meaning each input comes with the correct output (e.g., identifying spam emails). Unsupervised learning trains a model using unlabeled data, meaning the model finds hidden patterns or groups within the data on its own (e.g., customer segmentation). Reinforcement learning trains an agent to make decisions through trial and error. The agent receives feedback in the form of rewards or penalties, learning to maximize its reward over time, commonly used in game-playing or robotics.";
+    return "There are three main types of Machine Learning:\n- **Supervised Learning**: Training a model with labeled data (like showing it photos of cats labeled 'cat' so it learns to identify them).\n- **Unsupervised Learning**: Giving the model raw, unlabeled data and letting it find patterns or groups on its own (like grouping similar customers).\n- **Reinforcement Learning**: Training an AI agent through trial and error with rewards and penalties (like teaching a virtual robot to walk or play games).";
   }
   if (q.includes("deep learning") && q.includes("hierarchical representations")) {
-    return "Deep Learning is a subset of machine learning based on artificial neural networks with multiple hidden layers. These deep networks learn complex representations by processing data through a hierarchy of abstraction. Each layer of the network extracts increasingly complex features. For example, in image recognition, the first layer might detect simple edges, the middle layers might combine those edges to detect shapes like circles or squares, and the final layers might identify complex objects like faces or cars. The network learns by passing inputs forward, calculating the error, and adjusting its weights backward using backpropagation.";
+    return "**Deep Learning** is a type of machine learning that uses layers of artificial neural networks (inspired by the human brain) to learn complex patterns. Each layer learns increasingly complicated features. For example, in face recognition, the first layer might find simple edges, the next layer finds shapes like eyes and noses, and the final layer recognizes the whole face.";
   }
   if (q.includes("convolutional neural network") || q.includes("cnn") || q.includes("convolutional layers")) {
-    return "A Convolutional Neural Network (CNN) is a type of deep neural network designed for processing visual data like images. Unlike standard networks, CNNs use convolutional layers that apply small mathematical filters (kernels) to slide across the input image. As the filter slides, it performs matrix multiplications to detect local spatial features, such as horizontal lines, vertical edges, and color patterns, while preserving the spatial relationships between pixels. Pooling layers are then used to reduce the size of the data. This allows the network to learn translation-invariant features, making CNNs exceptionally powerful for image classification and object detection.";
+    return "A **Convolutional Neural Network (CNN)** is a special deep learning network used for images. It uses **convolutional layers** that slide small math filters (like a magnifying glass) across an image to find patterns like lines, curves, and textures. It also uses **pooling layers** to shrink the data, making it incredibly good at recognizing objects in photos.";
   }
   if (q.includes("recurrent neural networks") || q.includes("lstms mitigate vanishing gradients")) {
-    return "Recurrent Neural Networks (RNNs) are designed to process sequential data, such as text, audio, or time-series data, where the order of inputs matters. RNNs achieve this by maintaining a 'hidden state' that acts as a memory, carrying information from previous steps to the current step. However, standard RNNs struggle with long sequences due to the 'vanishing gradient' problem, where errors shrink exponentially during training, causing the network to forget long-term dependencies. Long Short-Term Memory (LSTM) networks solve this by introducing cell states and gating mechanisms (forget, input, and output gates) to selectively store and update information over long periods.";
+    return "**Recurrent Neural Networks (RNNs)** are used for sequential data like text, speech, or time-series. They remember past steps to understand the current input. However, normal RNNs have a 'vanishing gradient' problem where they forget older information. **LSTM (Long Short-Term Memory)** networks solve this by using special 'gates' to choose what information to keep or forget over long periods.";
   }
   if (q.includes("natural language processing") || q.includes("tokenization and embedding")) {
-    return "Natural Language Processing (NLP) is a branch of artificial intelligence that helps computers understand, interpret, and generate human language. Because computers can only process numbers, text must undergo tokenization and embedding. Tokenization breaks down raw text into smaller pieces called tokens (which can be words, characters, or subwords). These tokens are then mapped to unique numerical IDs. Word embeddings (such as Word2Vec or modern Transformer embeddings) translate these IDs into high-dimensional vectors. These vectors represent words in a continuous semantic space, allowing the model to capture the meaning and relationships between different words mathematically.";
+    return "**Natural Language Processing (NLP)** helps computers understand human language. Since computers only understand numbers, text goes through:\n- **Tokenization**: Splitting a sentence into smaller pieces (words or word fragments called tokens) and mapping them to numbers.\n- **Embedding**: Converting those numbers into high-dimensional vectors that represent the meaning of the words mathematically, allowing the computer to understand synonyms.";
   }
   if (q.includes("large language models") || q.includes("transformer architecture") || q.includes("self-attention")) {
-    return "Large Language Models (LLMs) are deep learning models trained on massive amounts of text to understand and generate human-like content. LLMs are built on the Transformer architecture, which relies on the self-attention mechanism. Unlike older sequential models, self-attention allows the model to process all words in a sentence simultaneously and weigh the importance of other words relative to the current word, regardless of their distance. For example, in 'the bank of the river', self-attention helps the model connect 'bank' to 'river' rather than a financial institution, capturing deep contextual relationships and producing highly coherent language generation.";
+    return "**Large Language Models (LLMs)** are AI models trained on massive amounts of text to understand and generate human-like writing. They use the **Transformer architecture**, which relies on **self-attention**. Self-attention lets the model process all words in a sentence at the exact same time and connect related words together, regardless of how far apart they are.";
   }
   if (q.includes("gradient descent") || q.includes("learning rates")) {
-    return "Gradient Descent is an optimization algorithm used to minimize a machine learning model's error (loss function) by iteratively adjusting its weights. The algorithm calculates the gradient, which shows the direction of the steepest increase in error, and moves the weights in the opposite direction. The learning rate is a small step-size multiplier that controls how large of an adjustment is made in each iteration. If the learning rate is too high, the model may overshoot the minimum and fail to converge. If the learning rate is too low, training will be extremely slow, taking too long to reach the optimal solution.";
+    return "**Gradient Descent** is an optimization algorithm used to minimize a model's errors (loss) by slowly adjusting its weights. The **learning rate** is a small multiplier that controls how big of a step the algorithm takes. If the learning rate is too high, the model overshoots the target and fails to learn. If it is too low, training will be painfully slow.";
   }
   if (q.includes("overfitting") && (q.includes("regularization") || q.includes("dropout") || q.includes("early stopping"))) {
-    return "Overfitting occurs when a machine learning model learns the training data too well, including its noise and random fluctuations. As a result, the model performs exceptionally on training data but fails to generalize to new, unseen testing data. To prevent overfitting, you can use several techniques. Regularization (L1 or L2) adds a penalty to the loss function to keep weights small. Dropout temporarily disables random neurons during training, forcing the network to learn robust, redundant representations. Early stopping monitors the validation error and halts training as soon as the validation performance begins to degrade, ensuring optimal generalizability.";
+    return "**Overfitting** happens when an AI model learns the training data too well (including random noise) and fails to perform well on new, unseen data. To prevent this, we use:\n- **Regularization**: Adds a small penalty to keep weights small.\n- **Dropout**: Temporarily turns off random neurons during training to keep the network robust.\n- **Early Stopping**: Halts training as soon as the test performance begins to drop.";
   }
   if (q.includes("feature engineering") || q.includes("input representations")) {
-    return "Feature Engineering is the process of transforming raw, unstructured data into meaningful features that better represent the underlying problem to the machine learning model. This is crucial because a model's performance depends heavily on the quality of its inputs. Even the most advanced algorithms cannot learn effectively if the inputs contain irrelevant, noisy, or poorly structured data. Feature engineering steps include normalizing numbers, converting text into vector embeddings, handling missing values, and combining variables to highlight key patterns. Good feature engineering simplifies the learning process, improves model accuracy, and significantly reduces the training time needed.";
+    return "**Feature Engineering** is the process of converting raw, messy data into neat inputs that a machine learning model can understand easily. This is the most important step because a model's accuracy depends entirely on the quality of its inputs. It includes scaling numbers, converting text into vector embeddings, and creating new variables that highlight important trends.";
   }
   if (q.includes("evaluate machine learning models") || q.includes("precision, recall")) {
-    return "Evaluating a model depends on the type of problem. Accuracy measures the percentage of correct predictions out of all predictions, but it can be misleading in imbalanced datasets. Precision measures the ratio of true positive predictions to all predicted positives, answering: 'Of those predicted positive, how many were correct?'. Recall measures the ratio of true positives to all actual positives, answering: 'How many actual positives did we catch?'. The F1-score is the harmonic mean of precision and recall, providing a balanced evaluation metric when dealing with imbalanced classes, ensuring both false positives and false negatives are minimized.";
+    return "To evaluate a model's performance, we look at different metrics:\n- **Accuracy**: The percentage of correct predictions (can be misleading if classes are imbalanced).\n- **Precision**: Out of all items the model predicted as positive, how many were actually correct?\n- **Recall**: Out of all actual positive items, how many did the model manage to catch?\n- **F1-Score**: A balanced average of both precision and recall.";
   }
 
   // Aptitude Pool
   if (q.includes("laptop is bought for $800") || q.includes("profit percentage")) {
-    return "To find the profit percentage, first calculate the actual profit made. The profit is the selling price minus the cost price: $1000 - $800 = $200. Next, divide this profit by the original cost price: $200 / $800 = 0.25. To convert this value into a percentage, multiply by 100: 0.25 * 100 = 25%. Therefore, the profit percentage is 25%. This corresponds to option C.";
+    return "To find the profit percentage:\n1. Find the actual money profit: Selling Price - Cost Price = $1000 - $800 = $200.\n2. Divide the profit by the original cost price: $200 / $800 = 0.25.\n3. Multiply by 100 to make it a percentage: 0.25 * 100 = 25%.\nSo, the profit percentage is 25%. This corresponds to option C.";
   }
   if (q.includes("clock shows exactly 3:15") || q.includes("angle in degrees between the hour hand and the minute hand")) {
-    return "At exactly 3:15, the minute hand points directly at the 3 (which represents 15 minutes, or 90 degrees from the top). However, the hour hand has moved slightly past the 3 because 15 minutes have passed. In one hour (60 minutes), the hour hand moves 30 degrees (since 360 / 12 = 30). In 15 minutes, the hour hand moves (15 / 60) * 30 = 7.5 degrees. Therefore, the hour hand is at 90 + 7.5 = 97.5 degrees. The difference between the hands is 97.5 - 90 = 7.5 degrees. This corresponds to option B.";
+    return "At exactly 3:15, the minute hand points directly at the 3. But the hour hand has moved a tiny bit past the 3 because 15 minutes have passed.\n- In 1 hour (60 minutes), the hour hand moves 30 degrees (since 360 degrees / 12 hours = 30).\n- In 15 minutes, the hour hand moves: (15 / 60) * 30 = 7.5 degrees.\nSo, the angle between the hour hand and the minute hand is exactly 7.5 degrees. This corresponds to option B.";
   }
   if (q.includes("5 workers can build a wall") || q.includes("6 workers to build the same wall")) {
-    return "To solve this problem, we use the inverse relationship between the number of workers and the time taken. First, calculate the total amount of work in terms of 'worker-days'. Since 5 workers build the wall in 12 days, the total work required is 5 * 12 = 60 worker-days. If we now have 6 workers performing the same total work, we divide the total worker-days by the number of workers: 60 worker-days / 6 workers = 10 days. Therefore, it will take 6 workers exactly 10 days to build the wall. This corresponds to option B.";
+    return "To solve this:\n1. Find the total work required in terms of 'worker-days': 5 workers * 12 days = 60 worker-days.\n2. Now, we have 6 workers to do the same 60 worker-days of work.\n3. Divide the total work by the number of workers: 60 / 6 = 10 days.\nSo, it will take 6 workers exactly 10 days to build the wall. This corresponds to option B.";
   }
   if (q.includes("train travels at a speed of 60") || q.includes("travel in 2.5 hours")) {
-    return "To calculate the distance traveled, use the formula: Distance = Speed * Time. In this problem, the speed of the train is given as 60 miles per hour (mph), and the time of travel is 2.5 hours. Multiplying these values together: Distance = 60 mph * 2.5 hours = 150 miles. Therefore, the train will travel a total distance of 150 miles in 2.5 hours. This corresponds to option B.";
+    return "To find the distance:\n- Use the simple formula: Distance = Speed * Time.\n- The speed is 60 miles per hour, and the time is 2.5 hours.\n- Distance = 60 * 2.5 = 150 miles.\nSo, the train will travel a total of 150 miles. This corresponds to option B.";
   }
   if (q.includes("next number in the logical series: 2, 6, 12")) {
-    return "To find the next number in the series, look at the difference between consecutive numbers: From 2 to 6, the difference is +4; From 6 to 12, the difference is +6; From 12 to 20, the difference is +8; From 20 to 30, the difference is +10. The differences form a clear sequence of even numbers: +4, +6, +8, +10. The next difference must be +12. Adding 12 to the last number: 30 + 12 = 42. This corresponds to option C.";
+    return "Let's look at how the numbers grow:\n- From 2 to 6: We add +4.\n- From 6 to 12: We add +6.\n- From 12 to 20: We add +8.\n- From 20 to 30: We add +10.\nNotice that we add consecutive even numbers (+4, +6, +8, +10). The next even number to add must be +12.\n- 30 + 12 = 42.\nSo, the next number in the series is 42. This corresponds to option C.";
   }
   if (q.includes("pointing to a photograph, amit said")) {
-    return "Let's break down the relationships step-by-step: 'My grandfather' refers to Amit's grandfather. 'The only son of my grandfather' refers to Amit's father (since his grandfather has only one son). 'Her father' is this only son, which means the girl's father is Amit's father. Since Amit and the girl in the photograph share the same father, the girl must be Amit's sister. Therefore, Amit was looking at a photograph of his sister. This corresponds to option A.";
+    return "Let's trace the family tree step-by-step:\n1. 'My grandfather' means Amit's grandfather.\n2. 'The only son of my grandfather' must be Amit's father (since his grandfather has only one son).\n3. 'Her father' is this only son, meaning Amit's father is the father of the girl in the picture.\nSince Amit and the girl share the same father, the girl must be Amit's sister. This corresponds to option A.";
   }
   if (q.includes("odd one out") && q.includes("carrot")) {
-    return "To find the odd one out, look at the categories of the items: Apple is a fruit. Banana is a fruit. Carrot is a root vegetable. Grape is a fruit. Since Apple, Banana, and Grape are all sweet fruits growing on trees or vines, while Carrot is a vegetable that grows underground, Carrot is the odd one out. This corresponds to option C.";
+    return "Let's look at the items:\n- Apple, Banana, and Grape are all sweet fruits that grow on trees or vines.\n- Carrot is a root vegetable that grows underground.\nSince Carrot is a vegetable and the others are fruits, Carrot is the odd one out. This corresponds to option C.";
   }
   if (q.includes("apple") && q.includes("eppla") && q.includes("grape")) {
-    return "Let's analyze the coding pattern of 'APPLE' turning into 'EPPLA': The first letter 'A' and the last letter 'E' are swapped, so 'A' moves to the end and 'E' moves to the front. The middle letters 'P', 'P', 'L' remain in their exact positions. Applying this exact rule to 'GRAPE': Swap the first letter 'G' and the last letter 'E', putting 'E' at the front and 'G' at the end. Keep the middle letters 'R', 'A', 'P' in their exact positions. The resulting coded word is 'ERAPG'. This corresponds to option A.";
+    return "Let's look at the coding rule for 'APPLE' to 'EPPLA':\n- Swap the first letter 'A' and the last letter 'E' (putting 'E' at the front and 'A' at the back).\n- Keep the middle letters 'P', 'P', 'L' in their exact same spots.\nNow, let's do the same for 'GRAPE':\n- Swap the first letter 'G' and the last letter 'E' (putting 'E' at the front and 'G' at the back).\n- Keep the middle letters 'R', 'A', 'P' in their exact same spots.\nThe coded word is 'ERAPG'. This corresponds to option A.";
   }
 
   // Behavioral HR
   if (q.includes("challenge you faced during a project") || q.includes("what actions did you take to resolve it")) {
-    return "In a previous project, we encountered a critical database latency issue where page loads took over five seconds during peak hours. Using the STAR framework, the task was to reduce this latency to under one second. I took action by setting up APM tools to profile queries, identifying missing indexes on our tables, and caching heavy queries using Redis. Additionally, I optimized several complex JOIN operations. As a result, database response time dropped by 80%, page load time went down to 800ms, and our cloud database hosting costs decreased by 15%, delivering a fast experience for our users.";
+    return "Using the STAR framework, here is an easy way to structure your answer:\n- **Situation**: In a school project, our app load times were super slow (over 5 seconds).\n- **Task**: My goal was to reduce this load time to under 1 second.\n- **Action**: I used tool profiles, added database indexes, and set up Redis caching to store frequent queries.\n- **Result**: The load time dropped to 0.8 seconds, making the app feel super fast and responsive for our users.";
   }
   if (q.includes("conflict in your team") || q.includes("handle the situation, and what did you learn")) {
-    return "During a group project, we had a major conflict regarding which framework to use. Two engineers wanted a complex microservices architecture, while others wanted a simple monolith. As the team lead, my task was to align everyone on a decision. I took action by organizing a technical meeting where we objectively listed the pros and cons of both architectures against our project timeline. We agreed to build a modular monolith for speed, but designed it with clean boundaries to allow easy microservice separation later. This resolved the conflict, we delivered the project on time, and I learned that objective data beats personal opinions.";
+    return "Here is a simple, structured response using the STAR framework:\n- **Situation**: My team had a major disagreement on whether to build a complex backend or a simple one.\n- **Task**: I needed to resolve the conflict so we didn't miss our project deadline.\n- **Action**: I set up an open meeting where we listed the pros and cons of both based on our time limit. We agreed on a simple backend first, but structured it so we could expand it easily later.\n- **Result**: We resolved the tension, completed the project on time, and I learned that looking at factual pros and cons beats arguing.";
   }
   if (q.includes("showed leadership") || q.includes("guide others toward a successful")) {
-    return "During our final semester project, our lead backend developer unexpectedly fell ill two weeks before the deadline. My task was to step in, coordinate the remaining development, and ensure a successful release. I took action by organizing a daily standup meeting to redistribute the backend workload among the remaining team members, focusing strictly on core features. I personally took over the API deployment and integrated the payment gateway. By prioritizing task tracking and unblocking team bottlenecks, we launched the application on schedule with 95% of planned features, proving that collaborative and agile leadership can overcome unexpected crises.";
+    return "Here is an easy, beginner-friendly STAR answer:\n- **Situation**: During a team project, our main developer got sick two weeks before the deadline.\n- **Task**: I stepped up to coordinate the team and finish the project.\n- **Action**: I organized daily 10-minute standup meetings to divide the work, focused on finishing only the most important features, and personally helped integrate the payment screens.\n- **Result**: We finished and launched the app on time with all core features working, showing that great communication keeps a team stable.";
   }
   if (q.includes("project failure") || q.includes("crashed our main user checkout")) {
-    return "In my first internship, I pushed a minor code change directly to the production branch without writing tests, which crashed our main user checkout page for two hours. My task was to debug the error, roll back the code immediately, and prevent future occurrences. I took action by creating a post-mortem report to identify the root cause, building a local staging environment, and writing comprehensive integration tests. I learned that speed should never override quality. In my next project, I insisted on a mandatory code review process and automated testing pipeline, resulting in zero production incidents.";
+    return "Here is a simple STAR framework response:\n- **Situation**: In my first project, I pushed a small code change without testing, which crashed the app's checkout page for two hours.\n- **Task**: I had to fix the bug quickly and make sure it never happened again.\n- **Action**: I rolled back the change, analyzed why it failed, wrote automatic tests to catch it, and created a rule that all code must be reviewed.\n- **Result**: The app was fixed, and we had zero crashes after that. I learned that writing tests is always better than rushing.";
   }
   if (q.includes("adapt quickly to changing requirements") || q.includes("manage your tasks")) {
-    return "One week before launching a client portal, our client changed their authentication requirements from a simple email login to a strict OAuth integration. My task was to pivot our authentication module without delaying the launch. I took action by holding an emergency meeting to postpone non-critical UI polishing, researching standard OAuth libraries, and setting up secure Google and GitHub redirect routes. By working in short iterations and testing early, we integrated the new secure authentication system on time, proving that adaptability, strong task prioritization, and clear communication can successfully handle rapid requirements shifts.";
+    return "Here is a clear, simple STAR answer:\n- **Situation**: One week before launching a client portal, the client changed the login requirement to require secure Google/GitHub login.\n- **Task**: I had to add this new login system without delaying the launch.\n- **Action**: I paused non-essential design updates, researched pre-made secure login libraries, and worked in short iterations to integrate the logins.\n- **Result**: We added the secure logins and launched the app on time, learning that being flexible and prioritizing tasks is key to success.";
   }
 
   // System Design
   if (q.includes("system scalability") || q.includes("trade-offs between horizontal")) {
-    return "System scalability is the ability of an application to handle an increasing volume of requests by expanding its computing resources. Vertical scaling (scaling up) means adding more power (CPU, RAM) to a single server. It is simple to implement but has a physical hardware limit and creates a single point of failure. Horizontal scaling (scaling out) means adding more servers to share the load. It requires an active load balancer and stateless application design, but offers unlimited scaling potential and high availability. Modern cloud architectures prefer horizontal scaling because it ensures that single server failures do not bring down the entire application.";
+    return "System scalability means making your application able to handle more users as it grows:\n- **Vertical Scaling (Scaling Up)**: Making a single server more powerful by adding more RAM and CPU. This is simple but has a physical limit and creates a single point of failure.\n- **Horizontal Scaling (Scaling Out)**: Adding more identical servers to share the load. This requires a load balancer but allows you to scale indefinitely and keeps your app online if one server crashes.";
   }
   if (q.includes("load balancers") && q.includes("round-robin")) {
-    return "A Load Balancer is a hardware or software device that sits between users and your backend servers. Its primary role is to distribute incoming application traffic evenly across a pool of healthy servers to prevent any single server from becoming a bottleneck. Load balancers constantly perform health checks to detect and avoid routing traffic to offline servers. A common routing algorithm is Round-Robin. In Round-Robin, the load balancer distributes incoming requests sequentially down the list of servers. For example, request 1 goes to Server A, request 2 to Server B, request 3 to Server C, and request 4 loops back to Server A.";
+    return "A Load Balancer acts like a friendly traffic cop. When thousands of users visit your website at once, it distributes the traffic evenly across all your healthy servers so no single server gets overloaded. It also checks if any server is offline and stops sending traffic to it. A common algorithm is **Round-Robin**, which sends request 1 to Server A, request 2 to Server B, request 3 to Server C, and then loops back.";
   }
   if (q.includes("relational databases differ from nosql") || q.includes("schema flexibility")) {
-    return "Relational databases (like PostgreSQL) store data in structured tables with strict schemas and predefined relationships. They are highly structured, support ACID transactions for data consistency, and scale vertically by upgrading server hardware. NoSQL databases (like MongoDB or DynamoDB) store unstructured or semi-structured data as key-value pairs, documents, or columns. They offer massive schema flexibility, allowing you to add new attributes dynamically without migrating tables. NoSQL databases scale horizontally by distributing data across multiple servers (sharding). Choose relational databases for complex queries and consistency, and NoSQL databases for massive write volume and scaling.";
+    return "Choosing a database depends on your data:\n- **Relational Databases (like PostgreSQL)**: Store data in strict, structured tables with predefined relationships. They are great for transactions and complex queries where accuracy is key.\n- **NoSQL Databases (like MongoDB)**: Store unstructured data (like documents or key-value pairs) with no strict layout. They are incredibly easy to scale horizontally and perfect for fast, massive data writes.";
   }
   if (q.includes("database caching") || q.includes("redis or memcached")) {
-    return "Database caching is the process of storing copy of frequently accessed data in a fast, temporary storage layer. Standard relational databases store data on slower solid-state or hard disks, making complex queries slow. In-memory caches like Redis store data directly in RAM, which allows for microsecond read and write response times. When an application needs data, it checks the cache first (a cache hit). If the data exists, it is returned instantly. If not (a cache miss), the application queries the database, returns the data, and saves it in the cache for future requests, drastically reducing database load and latency.";
+    return "**Database Caching** is like keeping your favorite books on your desk instead of walking to the library every time. Normal databases store data on slower disks. A cache (like Redis) stores frequently requested data directly in fast RAM memory. When your app needs data, it checks the cache first (cache hit) and returns it instantly, making your application load in microseconds.";
   }
   if (q.includes("cap theorem") || q.includes("consistency, availability, and partition")) {
-    return "The CAP Theorem states that a distributed database system can guarantee at most two out of three core properties: Consistency (every read receives the most recent write), Availability (every request receives a non-error response), and Partition Tolerance (the system continues to operate despite network messages being dropped). Since network partitions are inevitable in real-world systems, databases must choose between Consistency and Availability (CP or AP). A CP database (like Google Spanner) blocks updates during a network partition to guarantee consistent data, while an AP database (like Cassandra) remains fully available but allows temporary data divergence, resolving consistency later.";
+    return "The **CAP Theorem** says a distributed system can only guarantee 2 out of 3 things:\n- **Consistency**: Every user sees the exact same data at the same time.\n- **Availability**: Every user gets a response even if some servers are offline.\n- **Partition Tolerance**: The system keeps working even if network connections drop.\nSince network drops are inevitable, databases must choose between being fully Consistent (CP) or fully Available (AP).";
   }
   if (q.includes("microservices") && q.includes("decoupling applications")) {
-    return "Microservices is an architectural style that structures an application as a collection of small, loosely coupled, and independently deployable services. Each service focuses on a single business capability (such as Payments, Users, or Inventory) and communicates with other services using lightweight APIs. Decoupling applications into microservices offers several benefits. It allows teams to work, deploy, and scale services independently using different technologies. It also improves fault isolation: if the Payments service goes down, users can still browse products, preventing a complete system failure and making the overall application much more resilient.";
+    return "**Microservices** means splitting a large, heavy application into small, independent services that talk to each other via lightweight APIs (e.g., separate services for Payments, Users, and Inventory). This makes building apps easier because teams can update and scale each service independently without affecting the entire application. If the Payment service crashes, users can still browse products.";
   }
   if (q.includes("asynchronous message queues") || q.includes("rabbitmq or kafka")) {
-    return "Message queues act as temporary buffers that enable asynchronous communication between services. Instead of service A calling service B directly and waiting for a response (synchronous), service A publishes a message to a queue (like RabbitMQ) or log partition (like Kafka) and immediately continues its work. Service B consumes messages from the queue at its own pace. This design handles high-throughput spikes by absorbing bursts of traffic, decoupling services, and preventing slow down. If the receiving service crashes, messages remain safely stored in the queue, ensuring zero data loss and robust communication.";
+    return "**Message Queues** (like RabbitMQ or Kafka) let different services talk to each other asynchronously (without waiting for an instant response). Instead of service A calling service B directly, service A drops a message in the queue and goes back to work. Service B picks up and processes the message whenever it is ready. This prevents slow-downs and keeps data safe if a service goes offline.";
   }
   if (q.includes("api gateway in modern microservice") || q.includes("reverse proxy that acts as the single")) {
-    return "An API Gateway is a reverse proxy that acts as the single entry point for all external client requests entering a microservices architecture. Instead of clients calling dozens of individual services directly, they call the API Gateway. The gateway handles routing requests to the appropriate service, performing centralized authentication (checking API keys or JWT tokens), SSL termination, and rate limiting to protect backend resources from denial-of-service attacks. This simplifies the client code, centralizes security rules, and prevents individual microservices from having to implement authentication and security overhead themselves.";
+    return "An **API Gateway** acts as the single front door for your microservices. Instead of clients talking to dozens of different services directly, they talk only to the API Gateway. The gateway handles routing their requests to the right service, checking if they are logged in (authentication), and limiting how fast they can make requests (rate limiting) to keep the backend secure.";
   }
   if (q.includes("monitoring and alerting") || q.includes("dashboards help developers")) {
-    return "System monitoring and alerting are critical because they provide real-time visibility into the health and performance of your applications. Without proper monitoring, developers only learn about crashes or latency spikes when users complain. Dashboards (like those built in Grafana) collect and display vital metrics—such as CPU utilization, memory consumption, HTTP error rates, and database response times—in highly readable charts. This allows developers to quickly identify bottlenecks, such as a database query taking too long or a server running out of memory, and configure automated alerts to notify engineers to resolve the issue before it causes downtime.";
+    return "**Monitoring** gives developers a live dashboard (like Grafana) showing how healthy their application is. It displays charts for server CPU, memory, error rates, and load times. If something goes wrong (like a database crash), **Alerting** instantly sends a notification (like an email or SMS) to the developer so they can fix it before users start complaining.";
   }
   if (q.includes("single points of failure") || q.includes("redundancy at every layer")) {
-    return "Achieving high availability requires eliminating single points of failure (SPOF) throughout your entire system. A SPOF is any individual component that, if it fails, brings down the whole application. To eliminate them, you introduce redundancy at every layer. On the routing layer, use global DNS failover. For web servers, deploy multiple instances across separate Availability Zones behind an Active Load Balancer. For databases, set up multi-AZ replication with automatic failover and read replicas. Finally, store static assets in highly redundant object storage like S3, ensuring your system remains fully operational even if specific hardware components fail.";
+    return "A **Single Point of Failure (SPOF)** is any individual part of your system that, if it fails, brings down your entire application. To eliminate them, we use **Redundancy** (backups) at every layer:\n- Run multiple web servers behind a load balancer.\n- Set up database replication to a backup database in a different zone.\n- Use global failover routing so if one region goes down, traffic switches automatically.";
   }
 
   // -------------------------------------------------------------
@@ -502,22 +502,23 @@ function generateFallbackIdealAnswer(question: string): string {
 
   // Specialized dynamic templates based on category clues
   if (q.includes("a)") || q.includes("b)") || q.includes("c)") || q.includes("d)")) {
-    return "To solve this aptitude problem, we analyze the given conditions. First, we identify the key numerical values or logical relationships in the question. Next, we apply the appropriate mathematical formula or logical pattern to solve it step-by-step. By performing the calculations carefully, we verify the results against the provided choices and select the correct option. This systematic approach ensures accuracy and helps students master quantitative reasoning.";
+    return "To solve this aptitude problem, let's break it down: First, read the question and find the numbers or logical clues given. Next, use a simple formula or pattern to solve it step-by-step. Finally, check your answer against the multiple-choice options to choose the correct one.";
   }
 
   if (q.includes("tell me") || q.includes("describe") || q.includes("conflict") || q.includes("challenge") || q.includes("leadership") || q.includes("failure") || q.includes("adapt")) {
-    return "To answer this behavioral question successfully, we use the STAR (Situation, Task, Action, Result) methodology. First, describe the Situation and Task to give context. Next, explain the specific Actions you took, highlighting your soft skills and decision-making. Finally, share the quantifiable Result of your efforts. This structured format helps interviewers easily understand your problem-solving abilities and teamwork.";
+    return "To answer this behavioral question, use the simple **STAR** method:\n1. **Situation**: Describe the background or problem you faced.\n2. **Task**: Explain what your goal was.\n3. **Action**: Tell exactly what steps you took to solve it.\n4. **Result**: Share the successful outcome or what you learned.";
   }
 
   const s1 = extracted[0] || "this core technology";
   const s2 = extracted[1] || "industry best practices";
   const s3 = extracted[2] || "architectural patterns";
 
-  return `To understand the core concepts of ${s1}, we focus on its key benefits and implementation workflows. In a production environment, leveraging ${s2} alongside ${s3} helps optimize system throughput and minimize latency.
+  return `To understand **${s1}**, here is a simple breakdown:
+- **Core Concept**: It focuses on key benefits, simple setup, and easy workflows.
+- **Why it matters**: Using **${s2}** alongside **${s3}** keeps things clean, fast, and organized.
+- **Best Practices**: Start with a simple setup, test your code for errors, and monitor it to make sure it runs smoothly.
 
-First, developers set up the foundational configurations and secure connections. Second, they perform rigorous validations to identify any memory bottlenecks or query flaws. Finally, they configure real-time monitoring and alert thresholds to ensure high availability.
-
-By adopting these standard guidelines, students and professionals can build scalable applications, improve security, and resolve complex challenges efficiently.`;
+By following these simple steps, beginners can easily build and manage reliable programs!`;
 }
 
 export default function App() {
@@ -1012,14 +1013,28 @@ export default function App() {
       const selectedDomain = actualDomain;
       const customTopic = mockFocusTopic;
 
-      console.log("Fetching questions...");
-      const res = await fetch(`/api/question-bank?domain=${encodeURIComponent(selectedDomain)}&customTopic=${encodeURIComponent(customTopic)}`);
+      console.log("Fetching questions via generate-questions API...");
+      const res = await fetch("/api/generate-questions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          domain: selectedDomain,
+          difficulty: mockDifficulty,
+          numQuestions: mockNumQuestions,
+          role: mockRole,
+          company: mockCompany,
+          customTopic: customTopic,
+          questionMode: questionMode,
+          pinnedQuestions: pinnedQuestions,
+          previousQuestions: pastQuestionTexts
+        })
+      });
 
-      if (!res.ok) throw new Error("Could not download customized questions list");
-      const data = await res.json();
-      console.log("Questions received:", data);
-
-      const list: InterviewQuestion[] = data.questions || [];
+      if (!res.ok) throw new Error("Could not compile customized questions list");
+      const list: InterviewQuestion[] = await res.json();
+      console.log("Questions received:", list);
 
       // Store newly generated questions in Firestore
       if (isFirebaseActive && db) {
@@ -1105,18 +1120,32 @@ export default function App() {
             improvements: "Please write a meaningful professional response related to the question.",
             idealAnswer: generateFallbackIdealAnswer(currentQ.text)
           };
-        } else if (answerTextTrimmed.length > 100) {
+        } else if (answerTextTrimmed.length < 15) {
           evalResult = {
-            score: 8,
-            feedback: "Solid technical explanation showing structured thinking and deep domain knowledge.",
-            improvements: "Include more concrete business KPIs or numeric details.",
+            score: 1,
+            feedback: "Your response is extremely brief and does not address the question with any professional or conceptual depth.",
+            improvements: "Please provide a structured, detailed answer of at least 2-3 sentences explaining your approach.",
             idealAnswer: generateFallbackIdealAnswer(currentQ.text)
           };
-        } else {
+        } else if (answerTextTrimmed.length < 50) {
+          evalResult = {
+            score: 3,
+            feedback: "Your response is brief and lacks specific details, technical terminologies, or structured context.",
+            improvements: "Expand your answer with precise technical terms. Use the STAR methodology (Situation, Task, Action, Result) to format your answers.",
+            idealAnswer: generateFallbackIdealAnswer(currentQ.text)
+          };
+        } else if (answerTextTrimmed.length < 100) {
           evalResult = {
             score: 5,
             feedback: "Decent start, but the response is too brief to show full professional mastery.",
             improvements: "Expand on the exact tools, architectures, and design trade-offs involved.",
+            idealAnswer: generateFallbackIdealAnswer(currentQ.text)
+          };
+        } else {
+          evalResult = {
+            score: 8,
+            feedback: "Solid technical explanation showing structured thinking and deep domain knowledge.",
+            improvements: "Include more concrete business KPIs or numeric details to finalize your impact.",
             idealAnswer: generateFallbackIdealAnswer(currentQ.text)
           };
         }
@@ -1758,6 +1787,14 @@ export default function App() {
                   {/* SELECTION SETUP STATE */}
                   {interviewStep === 'setup' && (
                     <div className="space-y-4">
+                      <button
+                        onClick={() => setActiveTab('home')}
+                        className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back to Home</span>
+                      </button>
+
                       <div className="space-y-1">
                         <span className="text-[9px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">Simulation Studio</span>
                         <h2 className="text-xl font-bold tracking-tight text-white font-sans">Mock Interview Setup</h2>
@@ -1784,6 +1821,7 @@ export default function App() {
                             return (
                               <button
                                 key={dom}
+                                type="button"
                                 onClick={() => {
                                   setMockDomain(dom);
                                   if (dom !== 'Custom') {
@@ -1858,6 +1896,7 @@ export default function App() {
                                 return (
                                   <button
                                     key={lvl}
+                                    type="button"
                                     onClick={() => setMockDifficulty(lvl as any)}
                                     className={`p-2 rounded-xl text-[10.5px] text-center border transition-all cursor-pointer ${
                                       active
@@ -1881,7 +1920,13 @@ export default function App() {
                                 return (
                                   <button
                                     key={num}
-                                    onClick={() => setMockNumQuestions(num)}
+                                    type="button"
+                                    onClick={() => {
+                                      setMockNumQuestions(num);
+                                      if (pinnedQuestions.length > num) {
+                                        setPinnedQuestions(pinnedQuestions.slice(0, num));
+                                      }
+                                    }}
                                     className={`p-2 rounded-xl text-[10.5px] text-center border transition-all cursor-pointer ${
                                       active
                                         ? 'bg-zinc-850 text-white border-zinc-500 font-bold'
@@ -2070,6 +2115,14 @@ export default function App() {
                   {interviewStep === 'active_question' && generatedQuestions.length > 0 && (
                     <div className="space-y-4 animate-fade-in">
                       
+                      <button
+                        onClick={() => setInterviewStep('setup')}
+                        className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back to Setup</span>
+                      </button>
+
                       {/* Session progress line */}
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center text-[10px] font-mono uppercase text-zinc-400">
@@ -2188,6 +2241,14 @@ export default function App() {
                   {interviewStep === 'completed' && latestEvaluation && (
                     <div className="space-y-5 animate-fade-in">
                       
+                      <button
+                        onClick={() => setInterviewStep('setup')}
+                        className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
+                      >
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        <span>Back to Setup</span>
+                      </button>
+
                       {/* Score circle badge */}
                       <div className="bg-gradient-to-tr from-indigo-950/40 via-[#121629] to-black border border-indigo-500/20 p-5 rounded-3xl text-center space-y-3 relative overflow-hidden">
                         
@@ -2283,6 +2344,14 @@ export default function App() {
               {activeTab === 'resume' && (
                 <div className="space-y-4 pb-24 animate-fade-in text-left">
                   
+                  <button
+                    onClick={() => setActiveTab('home')}
+                    className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Home</span>
+                  </button>
+
                   <div className="space-y-1">
                     <span className="text-[9px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">Candidate Optimization</span>
                     <h2 className="text-xl font-bold tracking-tight text-white font-sans">Resume ATS Auditor</h2>
@@ -2436,6 +2505,14 @@ export default function App() {
               {activeTab === 'dashboard' && (
                 <div className="space-y-5 pb-24 animate-fade-in text-left">
                   
+                  <button
+                    onClick={() => setActiveTab('home')}
+                    className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Home</span>
+                  </button>
+
                   <div className="space-y-1">
                     <span className="text-[9px] font-mono font-bold text-indigo-400 uppercase tracking-widest block font-sans">Analytics Hub</span>
                     <h2 className="text-xl font-bold tracking-tight text-white font-sans">Appraisal Dashboard</h2>
@@ -2525,6 +2602,14 @@ export default function App() {
               {activeTab === 'profile' && (
                 <div className="space-y-4 pb-24 animate-fade-in text-left">
                   
+                  <button
+                    onClick={() => setActiveTab('home')}
+                    className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    <span>Back to Home</span>
+                  </button>
+
                   <div className="space-y-1">
                     <span className="text-[9px] font-mono font-bold text-indigo-400 uppercase tracking-widest block">System Identity</span>
                     <h2 className="text-xl font-bold tracking-tight text-white font-sans">Set Profile Settings</h2>
@@ -2627,10 +2712,12 @@ export default function App() {
                   </div>
                   
                   <button
+                    type="button"
                     onClick={() => setMentorOpen(false)}
-                    className="p-1 px-2 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 rounded-lg text-xs"
+                    className="inline-flex items-center space-x-1 p-1.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs rounded-xl transition cursor-pointer"
                   >
-                    Close Dialog
+                    <ArrowLeft className="w-3 h-3" />
+                    <span>Back</span>
                   </button>
                 </div>
 
@@ -2716,9 +2803,10 @@ export default function App() {
 
                   <button
                     onClick={() => setViewingRecordDetail(null)}
-                    className="p-1 px-2 bg-zinc-800 text-zinc-200 text-xs rounded-lg"
+                    className="inline-flex items-center space-x-1 p-1.5 px-3 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs rounded-xl transition cursor-pointer"
                   >
-                    Close Details
+                    <ArrowLeft className="w-3 h-3" />
+                    <span>Back</span>
                   </button>
                 </div>
 

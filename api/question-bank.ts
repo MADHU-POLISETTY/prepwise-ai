@@ -28,6 +28,9 @@ export default async function handler(req: any, res: any) {
   const trimmedDomain = actualDomain.trim().toLowerCase();
   let questionsPool: any[] = [];
 
+  const cloudDomains = ["kubernetes", "k8s", "terraform", "jenkins", "networking", "security", "cloud security", "git & github", "git", "jenkins", "cloud computing", "gcp", "azure", "google cloud", "microsoft azure", "azzure"];
+  const isCloudDomain = cloudDomains.some(d => trimmedDomain.includes(d));
+
   if (trimmedDomain === "docker" || trimmedDomain.includes("docker")) {
     questionsPool = dockerQuestions;
   } else if (trimmedDomain === "linux" || trimmedDomain.includes("linux")) {
@@ -36,8 +39,34 @@ export default async function handler(req: any, res: any) {
     questionsPool = gitQuestions;
   } else if (trimmedDomain === "aws" || trimmedDomain.includes("aws")) {
     questionsPool = awsQuestions;
+  } else if (trimmedDomain === "gcp" || trimmedDomain.includes("gcp") || trimmedDomain.includes("google cloud")) {
+    const list = getQuestionBankPool("gcp", "Cloud Engineer", "Medium");
+    questionsPool = list.map((q, i) => ({
+      id: i + 1,
+      question: q,
+      answer: "A production-grade Google Cloud (GCP) solution requires proper IAM resource inheritance, efficient global VPC setup, and robust serverless or container orchestration with Cloud Run / GKE."
+    }));
+  } else if (trimmedDomain === "azure" || trimmedDomain.includes("azure") || trimmedDomain.includes("microsoft azure") || trimmedDomain.includes("azzure")) {
+    const list = getQuestionBankPool("azure", "Cloud Engineer", "Medium");
+    questionsPool = list.map((q, i) => ({
+      id: i + 1,
+      question: q,
+      answer: "An enterprise-grade Microsoft Azure deployment relies on secure ARM Resource Groups, Entra ID (Azure AD) access controls, and managed compute such as App Services or AKS."
+    }));
   } else if (trimmedDomain === "cloud computing" || trimmedDomain.includes("cloud computing") || trimmedDomain === "cloud") {
-    questionsPool = awsQuestions;
+    const list = getQuestionBankPool("cloud computing", "Cloud Engineer", "Medium");
+    questionsPool = list.map((q, i) => ({
+      id: i + 1,
+      question: q,
+      answer: "A production-grade cloud solution requires high availability, secure VPC subnets, and automated recovery mechanisms."
+    }));
+  } else if (isCloudDomain) {
+    const list = getQuestionBankPool(trimmedDomain, "Cloud DevOps Engineer", "Medium");
+    questionsPool = list.map((q, i) => ({
+      id: i + 1,
+      question: q,
+      answer: `To excel in this domain, highlight high-availability design, secure IAM policies, and robust automation pipelines using ${actualDomain}.`
+    }));
   }
 
   console.log(`Question bank called for: ${actualDomain} (Count requested/decided: ${count})`);

@@ -94,8 +94,7 @@ service cloud.firestore {
           && data.metrics.confidence is number
           && data.metrics.problemSolving is number
           && data.metrics.clarity is number
-          && data.keys().hasAll(['category', 'role', 'difficulty', 'company', 'score', 'metrics', 'feedback', 'questions', 'createdAt', 'uid'])
-          && data.keys().size() == 10;
+          && data.keys().hasAll(['category', 'role', 'difficulty', 'company', 'score', 'metrics', 'feedback', 'questions', 'createdAt', 'uid']);
     }
   }
 }

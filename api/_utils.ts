@@ -539,7 +539,7 @@ export function getSimulatedEvaluation(category: string, role: string, answers: 
   };
 }
 
-export function getSimulatedResumeAnalysis(text: string, jobDescription: string = "") {
+export function getSimulatedResumeAnalysis(text: string, jobRole: string = "", jobDescription: string = "") {
   const dummySkills = ["React/Next.js", "TypeScript", "Cloud Firestore", "Tailwind CSS", "REST Architectures", "Secure Session Engineering", "Git & CI/CD Pipelines"];
   const dummyStrengths = [
     "High engineering consistency with fully typed interfaces and state safety.",
@@ -553,6 +553,15 @@ export function getSimulatedResumeAnalysis(text: string, jobDescription: string 
   ];
 
   let atsScore = 82;
+  let isSuitable = true;
+  let suitabilityVerdict = "Partially Suitable";
+  let suitabilityExplanation = "The candidate exhibits strong foundational web development and system design skills. However, some key architectural or domain-specific experiences are missing to fully satisfy this target role.";
+  let thingsToAddToResume = [
+    "Add specific project outcomes with quantitative metrics (e.g., reduced load times by 30%).",
+    "Include certifications or hands-on experience related to high-scale databases and cloud deployment.",
+    "Flesh out the professional experience bullet points with more industry keywords matching the role."
+  ];
+
   let keywordMatches = [
     { word: "React/Vite", matched: true },
     { word: "TypeScript", matched: true },
@@ -564,10 +573,27 @@ export function getSimulatedResumeAnalysis(text: string, jobDescription: string 
   ];
   let missingSkills = ["System Design Patterns", "Docker/Kubernetes Architecture", "Cloud Security Best Practices"];
 
-  if (jobDescription) {
-    const jdLowerJoin = jobDescription.toLowerCase();
-    if (jdLowerJoin.includes("senior") || jdLowerJoin.includes("lead")) {
-      atsScore = 74;
+  if (jobRole || jobDescription) {
+    const jdLowerJoin = (jobRole + " " + jobDescription).toLowerCase();
+    if (jdLowerJoin.includes("senior") || jdLowerJoin.includes("lead") || jdLowerJoin.includes("architect")) {
+      atsScore = 71;
+      isSuitable = false;
+      suitabilityVerdict = "Not Suitable / Needs Upgrades";
+      suitabilityExplanation = "The resume lacks the critical high-level leadership experience, system scale architectural proofs, and cloud-native cluster deployment keywords (such as Kubernetes or AWS ECS) required for a Senior/Lead level role.";
+      thingsToAddToResume = [
+        "Include details of mentoring junior developers and driving system design decisions.",
+        "Add Docker/Kubernetes container orchestration and CI/CD automation pipeline details.",
+        "Include cloud compliance, scalability indicators, and system security practices."
+      ];
+    } else {
+      atsScore = 88;
+      isSuitable = true;
+      suitabilityVerdict = "Highly Suitable";
+      suitabilityExplanation = "The candidate profile is an excellent fit for general full-stack and front-end engineering positions. Standard skills and tech stack align exceptionally well with core modern requirements.";
+      thingsToAddToResume = [
+        "Mention unit and integration testing coverage details (e.g., Jest/Vitest).",
+        "Add minor descriptions of API design and state management tools used."
+      ];
     }
   }
 
@@ -578,7 +604,11 @@ export function getSimulatedResumeAnalysis(text: string, jobDescription: string 
     summary: "A technically versatile profile exhibiting high-value front-end layout styling and back-end integration capabilities. The candidate is highly qualified to prep for premium full-stack or lead technical engineer interviews.",
     atsScore: atsScore,
     keywordMatches: keywordMatches,
-    missingSkills: missingSkills
+    missingSkills: missingSkills,
+    isSuitable: isSuitable,
+    suitabilityVerdict: suitabilityVerdict,
+    suitabilityExplanation: suitabilityExplanation,
+    thingsToAddToResume: thingsToAddToResume
   };
 }
 
@@ -640,7 +670,54 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
   
   let pool: string[] = [];
   
-  if (searchStr.includes("java")) {
+  // Decide which key to match, prioritizing the explicit domain/category selection
+  let keyToMatch = "";
+  
+  // Direct domain checks (strict selection matching)
+  if (domain.includes("java")) keyToMatch = "java";
+  else if (domain.includes("python")) keyToMatch = "python";
+  else if (domain.includes("aws") || domain.includes("amazon")) keyToMatch = "aws";
+  else if (domain.includes("kubernetes") || domain.includes("k8s")) keyToMatch = "kubernetes";
+  else if (domain.includes("terraform")) keyToMatch = "terraform";
+  else if (domain.includes("docker") || domain.includes("container")) keyToMatch = "docker";
+  else if (domain.includes("linux")) keyToMatch = "linux";
+  else if (domain.includes("jenkins")) keyToMatch = "jenkins";
+  else if (domain.includes("git") || domain.includes("github")) keyToMatch = "git";
+  else if (domain.includes("networking") || domain.includes("dns") || domain.includes("http")) keyToMatch = "networking";
+  else if (domain.includes("security") || domain.includes("iam") || domain.includes("encryption")) keyToMatch = "security";
+  else if (domain.includes("devops") || domain.includes("pipeline")) keyToMatch = "devops";
+  else if (domain.includes("gcp") || domain.includes("google cloud")) keyToMatch = "gcp";
+  else if (domain.includes("azure") || domain.includes("microsoft azure") || domain.includes("azzure")) keyToMatch = "azure";
+  else if (domain.includes("cloud computing")) keyToMatch = "cloud computing";
+  else if (domain.includes("ai") || domain.includes("ml") || domain.includes("machine learning") || domain.includes("deep learning")) keyToMatch = "ai";
+  else if (domain.includes("aptitude") || domain.includes("puzzle") || domain.includes("math")) keyToMatch = "aptitude";
+  else if (domain.includes("hr") || domain.includes("behavioral") || domain.includes("soft skills") || domain.includes("star")) keyToMatch = "hr";
+  else if (domain.includes("system design") || domain.includes("architecture")) keyToMatch = "system design";
+
+  // If no strict match on domain, search the broader context (which includes role, custom topic, company)
+  if (!keyToMatch) {
+    if (searchStr.includes("java")) keyToMatch = "java";
+    else if (searchStr.includes("python")) keyToMatch = "python";
+    else if (searchStr.includes("aws") || searchStr.includes("amazon")) keyToMatch = "aws";
+    else if (searchStr.includes("kubernetes") || searchStr.includes("k8s")) keyToMatch = "kubernetes";
+    else if (searchStr.includes("terraform")) keyToMatch = "terraform";
+    else if (searchStr.includes("docker") || searchStr.includes("container")) keyToMatch = "docker";
+    else if (searchStr.includes("linux")) keyToMatch = "linux";
+    else if (searchStr.includes("jenkins")) keyToMatch = "jenkins";
+    else if (searchStr.includes("git") || searchStr.includes("github")) keyToMatch = "git";
+    else if (searchStr.includes("networking") || searchStr.includes("dns") || searchStr.includes("http")) keyToMatch = "networking";
+    else if (searchStr.includes("security") || searchStr.includes("iam") || searchStr.includes("encryption")) keyToMatch = "security";
+    else if (searchStr.includes("devops") || searchStr.includes("pipeline")) keyToMatch = "devops";
+    else if (searchStr.includes("gcp") || searchStr.includes("google cloud")) keyToMatch = "gcp";
+    else if (searchStr.includes("azure") || searchStr.includes("microsoft azure") || searchStr.includes("azzure")) keyToMatch = "azure";
+    else if (searchStr.includes("cloud computing")) keyToMatch = "cloud computing";
+    else if (searchStr.includes("ai") || searchStr.includes("ml") || searchStr.includes("machine learning") || searchStr.includes("deep learning")) keyToMatch = "ai";
+    else if (searchStr.includes("aptitude") || searchStr.includes("puzzle") || searchStr.includes("math")) keyToMatch = "aptitude";
+    else if (searchStr.includes("hr") || searchStr.includes("behavioral") || searchStr.includes("soft skills") || searchStr.includes("star")) keyToMatch = "hr";
+    else if (searchStr.includes("system design") || searchStr.includes("architecture")) keyToMatch = "system design";
+  }
+
+  if (keyToMatch === "java") {
     pool = [
       `What are the core pillars of OOP (Object-Oriented Programming) in Java, and how does encapsulation improve maintainability?`,
       `Explain the differences between List, Set, and Map in the Java Collections Framework. When would you choose a HashMap over a TreeMap?`,
@@ -653,7 +730,7 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `What are the major Java 8 features? Explain functional interfaces, lambda expressions, and the Streams API.`,
       `Describe how the Singleton or Factory Design Pattern is typically implemented and utilized in Java projects.`
     ];
-  } else if (searchStr.includes("python")) {
+  } else if (keyToMatch === "python") {
     pool = [
       `Explain the concept of OOP (Object-Oriented Programming) in Python, including inheritance and polymorphism.`,
       `What are decorators in Python, and how do you write a custom decorator to measure function execution time?`,
@@ -666,7 +743,7 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `How do you implement robust exception handling in Python using try-except-finally blocks, and what are custom exceptions?`,
       `What is the difference between deep copy and shallow copy in Python, and how does python manage references?`
     ];
-  } else if (searchStr.includes("aws") || searchStr.includes("amazon")) {
+  } else if (keyToMatch === "aws") {
     pool = [
       `How does Amazon EC2 provide resizable compute capacity, and what are the main differences between On-Demand and Spot instances?`,
       `What is Amazon S3, and how do you configure bucket policies, versioning, and lifecycle rules for storage optimization?`,
@@ -679,7 +756,95 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `What is serverless computing on AWS? Explain how AWS Lambda operates and scales based on incoming events.`,
       `How do you monitor infrastructure metrics and set up custom alarms using Amazon CloudWatch?`
     ];
-  } else if (searchStr.includes("devops") || searchStr.includes("pipeline") || searchStr.includes("terraform") || searchStr.includes("docker")) {
+  } else if (keyToMatch === "kubernetes") {
+    pool = [
+      `What is the Kubernetes architecture? Describe the role of the Control Plane vs. Node components.`,
+      `Explain the difference between a Pod, a Deployment, and a ReplicaSet in Kubernetes.`,
+      `How does Kubernetes Service Discovery work? Compare ClusterIP, NodePort, and LoadBalancer service types.`,
+      `What are Kubernetes ConfigMaps and Secrets? How do you securely mount them as environment variables inside a Pod?`,
+      `Explain the concept of Kubernetes liveness and readiness probes, and how they contribute to self-healing.`,
+      `What is a DaemonSet in Kubernetes, and when would you use it instead of a standard Deployment?`,
+      `Explain how HPA (Horizontal Pod Autoscaler) scales pods based on CPU or custom Prometheus metrics.`,
+      `What is the purpose of Kubernetes Ingress, and how does it differ from a standard LoadBalancer Service?`
+    ];
+  } else if (keyToMatch === "terraform") {
+    pool = [
+      `What is Infrastructure as Code (IaC), and what advantages does Terraform offer over manual cloud configuration?`,
+      `Explain the purpose of the Terraform State file (.tfstate), and why it is critical to use remote state locking in production.`,
+      `What is the difference between terraform plan, terraform apply, and terraform destroy commands?`,
+      `How do Terraform modules work, and how do they promote code reusability and standardization across environments?`,
+      `Explain Terraform variables, local values, and output values, and how they parameterize infrastructure templates.`,
+      `What is a Terraform provider, and how does Terraform interact with external cloud APIs?`,
+      `What is the purpose of "terraform import", and how do you bring existing cloud infrastructure under Terraform management?`,
+      `Explain state drifting in Terraform, and how the tool reconciles differences between state and actual cloud environments.`
+    ];
+  } else if (keyToMatch === "docker") {
+    pool = [
+      `Explain the differences between a Docker Image, a Docker Container, and a Dockerfile.`,
+      `How do Docker volumes work, and why are they necessary for persistent database storage in containers?`,
+      `What is a multi-stage Docker build, and how does it help reduce final production container image sizes?`,
+      `What is the difference between COPY and ADD instructions in a Dockerfile, and when should you use each?`,
+      `How do Docker container networks function? Describe the differences between Bridge, Host, and Overlay networks.`,
+      `What is the purpose of Docker Compose, and how does it help define multi-container local applications?`,
+      `How does Docker caching work during image build, and how do you optimize your Dockerfile to maximize cache hits?`,
+      `Explain how you can limit CPU and Memory resources for a running Docker container.`
+    ];
+  } else if (keyToMatch === "linux") {
+    pool = [
+      `What is the Linux file system hierarchy, and what is the purpose of directories like /etc, /var, and /bin?`,
+      `Explain the difference between soft links (symbolic links) and hard links in Linux. How does deleting the source affect them?`,
+      `How do you change file permissions using chmod? Explain the meaning of chmod 755 and chmod 644.`,
+      `What are the commands to monitor system resources (CPU, Memory, Disk, I/O) in real-time on Linux?`,
+      `Explain how the Linux process states work (Running, Sleeping, Stopped, Zombie) and how to manage them with kill.`,
+      `What is an Inode in Linux, and what happens when a system runs out of Inodes but still has free disk space?`,
+      `Explain the difference between a hard reboot and soft reboot, and what happens during the Linux system boot process.`,
+      `How do you view and search through system log files using commands like grep, tail, and journalctl in Linux?`
+    ];
+  } else if (keyToMatch === "jenkins") {
+    pool = [
+      `What is Jenkins, and how does it automate the CI/CD pipeline from code commit to production deployment?`,
+      `Explain the difference between Declarative Pipelines and Scripted Pipelines in Jenkins.`,
+      `What are Jenkins agents (slaves), and how do they distribute build workloads across multiple worker nodes?`,
+      `How do you securely manage sensitive credentials, such as API keys and SSH keys, in Jenkins pipelines?`,
+      `What is a Jenkinsfile, and what are the benefits of storing your build pipeline as code in your Git repository?`,
+      `How do you trigger a Jenkins build automatically using Git Webhooks upon a new commit?`,
+      `Explain the purpose of Jenkins post-build actions and how notifications (Slack, Email) are handled.`,
+      `What is a parameterized build in Jenkins, and when would you configure one?`
+    ];
+  } else if (keyToMatch === "git") {
+    pool = [
+      `Explain the differences between git merge and git rebase. When would you prefer one over the other?`,
+      `What is git stash, and how does it help you save temporary local changes without creating a commit?`,
+      `Explain the difference between git fetch and git pull. How does git pull combine two distinct actions?`,
+      `What are Git Hooks, and how can you use them to run automated linters or tests before a commit is allowed?`,
+      `Describe a standard pull request (PR) workflow on GitHub, including peer code reviews and status checks.`,
+      `What is git cherry-pick, and when would you use it to move commits between branches?`,
+      `Explain how you resolve git merge conflicts step-by-step.`,
+      `What is git reflog, and how is it used to recover lost commits or deleted branches?`
+    ];
+  } else if (keyToMatch === "networking") {
+    pool = [
+      `Explain the difference between TCP and UDP protocols, and name common use cases for each.`,
+      `What is the OSI Model? Briefly describe the functions of the Physical, Network, Transport, and Application layers.`,
+      `How does DNS (Domain Name System) resolve a domain name like google.com into an IP address?`,
+      `What is CIDR (Classless Inter-Domain Routing), and how do IP addresses and subnet masks define network boundaries?`,
+      `Explain the differences between HTTP and HTTPS. How does SSL/TLS establish a secure connection?`,
+      `What is the difference between a private IP address and a public IP address? Explain NAT (Network Address Translation).`,
+      `What is a subnet mask, and how do you calculate how many hosts can fit in a /24 subnet?`,
+      `Explain how Traceroute (tracert) works to map the network hops between your device and a target host.`
+    ];
+  } else if (keyToMatch === "security") {
+    pool = [
+      `What is the principle of least privilege, and how is it applied to cloud IAM policies and user roles?`,
+      `Explain the concept of Data at Rest Encryption vs. Data in Transit Encryption in cloud environments.`,
+      `What are Security Groups and Network Access Control Lists (NACLs)? How do they differ in statefulness and subnet pairing?`,
+      `What is the AWS Shared Responsibility Model? What security configurations are the responsibility of the customer?`,
+      `What is a DDoS attack, and what cloud-native mitigation techniques or services (like AWS Shield or WAF) protect against it?`,
+      `Explain multi-factor authentication (MFA) and why it is a critical baseline control for cloud root accounts.`,
+      `What is penetration testing, and how does vulnerability scanning differ from it in cloud security audits?`,
+      `Explain how SSH key-pair authentication works to secure logins to cloud VMs.`
+    ];
+  } else if (keyToMatch === "devops") {
     pool = [
       `What is CI/CD, and why is it crucial for continuous automated software delivery pipelines?`,
       `Explain how Jenkins compiles, tests, and deploys applications securely using scripted or declarative Pipelines.`,
@@ -692,7 +857,29 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `Explain how Ansible provides agentless configuration management and automated playbook execution.`,
       `What are the core benefits of Infrastructure as Code (IaC) over manual environment configuration?`
     ];
-  } else if (searchStr.includes("cloud computing") || searchStr.includes("gcp") || searchStr.includes("azure")) {
+  } else if (keyToMatch === "gcp") {
+    pool = [
+      "Explain Google Cloud's resource hierarchy (Organization, Folders, Projects, Resources) and how IAM policies are inherited.",
+      "What are the key differences between Google Compute Engine (GCE) and Google Kubernetes Engine (GKE) in terms of management and scaling?",
+      "How does GCP's global VPC network differ from AWS or Azure VPCs? Explain the concept of Shared VPC.",
+      "What is Cloud Spanner, and how does it achieve global consistency while maintaining relational ACID properties at scale?",
+      "Explain GCP's serverless options: Cloud Run vs. Cloud Functions. When would you choose one over the other?",
+      "What is Google Cloud Storage (GCS), and what are its storage classes (Standard, Nearline, Coldline, Archive)?",
+      "How does GCP Cloud Identity and Access Management (IAM) utilize Roles (Primitive, Predefined, Custom) to secure projects?",
+      "Explain Google Cloud's operations suite (formerly Stackdriver). How do Cloud Logging and Cloud Monitoring help track service health?"
+    ];
+  } else if (keyToMatch === "azure") {
+    pool = [
+      "Explain the Azure Resource Manager (ARM) hierarchy (Management Groups, Subscriptions, Resource Groups, Resources).",
+      "What are Azure App Services, and how do they differ from Azure Virtual Machines (VMs) in deployment flexibility?",
+      "How does Azure Active Directory (Azure AD / Microsoft Entra ID) handle authentication, RBAC, and conditional access policies?",
+      "Explain the difference between Azure Blob Storage, Azure Files, and Azure Disk Storage, and common use cases for each.",
+      "What is Azure Kubernetes Service (AKS), and how does it manage container orchestration and integration with Azure Virtual Networks?",
+      "Explain Azure's serverless offerings: Azure Functions vs. Azure Logic Apps.",
+      "What is Azure Cosmos DB, and how does it manage multi-model API support and global distribution with configurable consistency levels?",
+      "How do Azure Monitor and Application Insights gather telemetry and track performance across cloud resources?"
+    ];
+  } else if (keyToMatch === "cloud computing") {
     pool = [
       `What are the key architectural differences and use cases for IaaS, PaaS, and SaaS cloud delivery models?`,
       `Explain the role of virtualization in cloud computing and how hypervisors enable multiple operating systems on physical hardware.`,
@@ -704,7 +891,7 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `How do Content Delivery Networks (CDNs) leverage edge caching to improve global latency?`,
       `What is cloud tenant isolation, and how do public cloud providers ensure secure multi-tenancy?`
     ];
-  } else if (searchStr.includes("ai") || searchStr.includes("ml") || searchStr.includes("machine learning") || searchStr.includes("deep learning")) {
+  } else if (keyToMatch === "ai") {
     pool = [
       `What is the difference between supervised, unsupervised, and reinforcement learning in Machine Learning?`,
       `Explain Deep Learning. How do multi-layer artificial neural networks learn complex hierarchical representations?`,
@@ -717,7 +904,7 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `What is Feature Engineering, and why is selecting the correct input representations crucial for model success?`,
       `How do you evaluate Machine Learning models using metrics like accuracy, precision, recall, and F1-score?`
     ];
-  } else if (searchStr.includes("aptitude") || searchStr.includes("puzzle") || searchStr.includes("math")) {
+  } else if (keyToMatch === "aptitude") {
     pool = [
       `If a laptop is bought for $800 and sold for $1000, what is the profit percentage?\nA) 15%\nB) 20%\nC) 25%\nD) 30%`,
       `A clock shows exactly 3:15. What is the angle in degrees between the hour hand and the minute hand?\nA) 0 degrees\nB) 7.5 degrees\nC) 30 degrees\nD) 90 degrees`,
@@ -728,7 +915,7 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `Find the odd one out from the following list:\nA) Apple\nB) Banana\nC) Carrot\nD) Grape`,
       `In a certain code language, "APPLE" is written as "EPPLA". How is "GRAPE" written in that language?\nA) ERAPG\nB) EPAQG\nC) ERPGA\nD) GEPAR`
     ];
-  } else if (searchStr.includes("hr") || searchStr.includes("behavioral") || searchStr.includes("soft skills") || searchStr.includes("star")) {
+  } else if (keyToMatch === "hr") {
     pool = [
       `Tell me about a challenge you faced during a project. What actions did you take to resolve it, and what was the outcome?`,
       `Describe a conflict in your team or group project. How did you handle the situation, and what did you learn?`,
@@ -736,7 +923,7 @@ export function getQuestionBankPool(categoryOrDomain: string, role: string, diff
       `Describe a project failure you experienced. What did you learn from it, and how did you apply that learning later?`,
       `Tell me about a time when you had to adapt quickly to changing requirements. How did you manage your tasks?`
     ];
-  } else if (searchStr.includes("system design") || searchStr.includes("architecture")) {
+  } else if (keyToMatch === "system design") {
     pool = [
       `What is system scalability, and what are the trade-offs between horizontal scaling and vertical scaling?`,
       `Explain how load balancers distribute traffic across a pool of servers, and describe round-robin routing.`,

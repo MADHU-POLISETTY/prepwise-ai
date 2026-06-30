@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  # PrepWise AI Full-Stack Application Service
+  prepwise-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prepwise-ai:latest
+    container_name: prepwise-core-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -18,6 +18,7 @@ import {
   RefreshCw,
   X,
   AlertTriangle,
+  PlusCircle,
   BookOpen,
   Check,
   HelpCircle,
@@ -38,7 +39,19 @@ import {
   Pin,
   Search,
   Database,
-  Download
+  Download,
+  Cpu,
+  Cloud,
+  Server,
+  Layers,
+  Terminal,
+  Box,
+  GitBranch,
+  Network,
+  ShieldCheck,
+  Infinity,
+  Layout,
+  HardDrive
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -53,6 +66,7 @@ import { collection, addDoc, getDocs, query, orderBy, limit, doc, setDoc, where 
 import { signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { db, auth, isFirebaseActive, handleFirestoreError, OperationType } from './lib/firebase';
 import { exportEvaluationToPDF } from './utils/pdfExport';
+import { CloudHub } from './components/CloudHub';
 
 // Interfaces for State Management
 interface InterviewQuestion {
@@ -107,6 +121,10 @@ interface ResumeAnalysisRecord {
   atsScore: number;
   keywordMatches: { word: string; matched: boolean }[];
   missingSkills: string[];
+  isSuitable: boolean;
+  suitabilityVerdict: string;
+  suitabilityExplanation: string;
+  thingsToAddToResume: string[];
 }
 
 interface ChatMessage {
@@ -531,7 +549,7 @@ export default function App() {
   });
 
   // Mobile app navigation state
-  const [activeTab, setActiveTab] = useState<'home' | 'interview' | 'resume' | 'dashboard' | 'profile'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'interview' | 'resume' | 'dashboard' | 'profile' | 'cloudhub'>('home');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(true); // Forced full screen app container
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [isFirebaseUserReady, setIsFirebaseUserReady] = useState<boolean>(false);
@@ -539,7 +557,7 @@ export default function App() {
   // User Profile configuration
   const [userName, setUserName] = useState<string>(() => localStorage.getItem('pw_user_name') || 'James Manoj');
   const [userEmail, setUserEmail] = useState<string>(() => localStorage.getItem('pw_user_email') || 'candidate.preview@prepwise.ai');
-  const [userGoal, setUserGoal] = useState<string>(() => localStorage.getItem('pw_user_goal') || 'Senior Software Engineer');
+  const [userGoal, setUserGoal] = useState<string>(() => localStorage.getItem('pw_user_goal') || 'Cloud DevOps Engineer');
   
   // Login Form input bindings
   const [loginFormName, setLoginFormName] = useState<string>(() => localStorage.getItem('pw_user_name') || '');
@@ -578,7 +596,7 @@ export default function App() {
 
   // Interactive Screen 2: Interview Tool Suite states
   const [interviewStep, setInterviewStep] = useState<'setup' | 'loading' | 'active_question' | 'evaluating' | 'completed'>('setup');
-  const [mockDomain, setMockDomain] = useState<string>('DevOps');
+  const [mockDomain, setMockDomain] = useState<string>('Cloud Computing');
   const [customDomainText, setCustomDomainText] = useState<string>('');
   const [mockNumQuestions, setMockNumQuestions] = useState<number>(5);
   const [mockRole, setMockRole] = useState<string>(userGoal);
@@ -637,6 +655,7 @@ export default function App() {
 
   // Interactive Screen 3: Resume Scan states
   const [resumeText, setResumeText] = useState<string>(() => localStorage.getItem('pw_resume_text') || '');
+  const [targetJobRole, setTargetJobRole] = useState<string>(() => localStorage.getItem('pw_resume_target_role') || '');
   const [targetJobDesc, setTargetJobDesc] = useState<string>(() => localStorage.getItem('pw_resume_target_jd') || '');
   const [isScanningResume, setIsScanningResume] = useState<boolean>(false);
   const [activeResumeAnalysis, setActiveResumeAnalysis] = useState<ResumeAnalysisRecord | null>(() => {
@@ -1339,6 +1358,7 @@ export default function App() {
     }
     setIsScanningResume(true);
     localStorage.setItem('pw_resume_text', resumeText);
+    localStorage.setItem('pw_resume_target_role', targetJobRole);
     localStorage.setItem('pw_resume_target_jd', targetJobDesc);
 
     try {
@@ -1347,6 +1367,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           textContent: resumeText,
+          jobRole: targetJobRole || "Software Engineer",
           jobDescription: targetJobDesc || "Standard Tech Industry Parameters",
           fileDataBase64: resumeFileBase64,
           mimeType: resumeFileName?.endsWith('.pdf') ? "application/pdf" : "text/plain"
@@ -1381,7 +1402,14 @@ export default function App() {
           { word: "System Design", matched: true },
           { word: "Kafka", matched: false }
         ],
-        missingSkills: ["Redis Caching", "Docker Pipelines", "AWS IAM Policy setup"]
+        missingSkills: ["Redis Caching", "Docker Pipelines", "AWS IAM Policy setup"],
+        isSuitable: true,
+        suitabilityVerdict: "Highly Suitable",
+        suitabilityExplanation: "Fallback assessment: The candidate profile aligns very well with typical software developer requirements, but lacks specific cloud-scale production metrics.",
+        thingsToAddToResume: [
+          "Quantify achievements in your professional experience bullet points.",
+          "List experience with container orchestration and server deployments."
+        ]
       };
       setActiveResumeAnalysis(fallbackAnalysis);
       localStorage.setItem('pw_resume_analysis', JSON.stringify(fallbackAnalysis));
@@ -1389,24 +1417,6 @@ export default function App() {
     } finally {
       setIsScanningResume(false);
     }
-  };
-
-  // Pre-load demo resumes for client scanning
-  const loadDemoResume = (type: 'senior' | 'junior' | 'marketing') => {
-    let text = "";
-    let jd = "";
-
-    if (type === 'senior') {
-      text = `Manoj P\nSenior Software Architect\n\nEXPERIENCE:\n- Worked with complex payment architectures, coordinating high-performance Stripe integration APIs across multi-region server clusters.\n- Implemented strict concurrency rules, reducing payload bottlenecks by 42%.\n- Mentored 12 back-end engineers on REST specs and relational database synchronization.\n\nSKILLS:\nJavaScript, TypeScript, Express, PostgreSQL, Redis, Docker, System Design, Unit Testing.`;
-      jd = `Senior Level Tech Developer\nRequirements: Must have strong system design capabilities, experience with payment gateway APIs, cluster scaling orchestration, and a background in microservice caching systems.`;
-    } else if (type === 'junior') {
-      text = `John Doe\nJunior Web Enthusiast\n\nEXPERIENCE:\n- Responsible for checking bugs and helping with styled UI screens.\n- Maintained project tasks and made coffee.\n- Did minor front-end changes occasionally.\n\nSKILLS:\nHTML, Basic CSS, JS, React, Tailwind, Microsoft Word.`;
-      jd = `Software Developer - Advanced full-stack engineer with expertise in database scaling, security protocols, AWS Cloud Architecture, and Docker deployments.`;
-    }
-
-    setResumeText(text);
-    setTargetJobDesc(jd);
-    showToast("Template demo uploaded successfully", "info");
   };
 
   // Handle adding custom question manually
@@ -1630,9 +1640,11 @@ export default function App() {
               <span className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-[8.5px] font-mono font-black uppercase text-black px-1.5 py-0.5 rounded-md tracking-wider">PREP</span>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 text-center">
               <h1 className="text-3xl font-black tracking-tight text-white uppercase font-sans">PrepWise AI</h1>
-              <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono">Mobile Core Engine v3.0</p>
+              <p className="text-[11px] text-zinc-400 font-sans leading-relaxed max-w-[260px] mx-auto">
+                Master AWS, GCP, Azure, Docker, Kubernetes, Linux, Terraform, and DevOps interviews with AI-powered practice sessions.
+              </p>
             </div>
 
             <div className="flex items-center space-x-2 pt-4">
@@ -1768,10 +1780,10 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       setUserName("James Jane");
-                      setUserGoal("Lead Product Developer");
+                      setUserGoal("Cloud DevOps Architect");
                       setUserEmail("guest.user@prepwise-sim.ai");
                       localStorage.setItem('pw_user_name', "James Jane");
-                      localStorage.setItem('pw_user_goal', "Lead Product Developer");
+                      localStorage.setItem('pw_user_goal', "Cloud DevOps Architect");
                       localStorage.setItem('pw_is_logged_in', 'true');
                       setIsLoggedIn(true);
                       showToast("Authenticated anonymously as Guest", "info");
@@ -1842,6 +1854,18 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* Cloud Interview Prep Tagline Banner */}
+                  <div className="bg-gradient-to-r from-indigo-950/20 via-indigo-900/10 to-transparent p-4 rounded-3xl border border-indigo-950/40 flex items-center space-x-3.5 relative overflow-hidden">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-600/15 text-indigo-400 border border-indigo-500/15 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5 animate-pulse text-indigo-400 fill-indigo-400/10" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
+                        Master <span className="text-indigo-400 font-extrabold">AWS</span>, <span className="text-indigo-400 font-extrabold">GCP</span>, <span className="text-indigo-400 font-extrabold">Azure</span>, <span className="text-indigo-400 font-extrabold">Docker</span>, <span className="text-indigo-400 font-extrabold">Kubernetes</span>, <span className="text-indigo-400 font-extrabold">Linux</span>, <span className="text-indigo-400 font-extrabold">Terraform</span>, and <span className="text-indigo-400 font-extrabold">DevOps</span> interviews with AI-powered practice sessions.
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Comprehensive Stats Dashboard Summary */}
                   <div className="bg-gradient-to-br from-indigo-900/30 to-[#0c0f18] border border-indigo-900/20 p-4 rounded-3xl space-y-3 relative overflow-hidden">
                     <div className="flex justify-between items-center border-b border-indigo-950/40 pb-2">
@@ -1883,7 +1907,7 @@ export default function App() {
                   <div className="space-y-2">
                     <span className="text-[9px] font-serif tracking-widest uppercase text-zinc-500 font-bold block">Start Preparation Units</span>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <button
                         onClick={() => setActiveTab('interview')}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-3xl p-4 text-left transition-all duration-200 cursor-pointer shadow-lg hover:shadow-indigo-500/10 group flex flex-col justify-between min-h-[110px]"
@@ -1893,7 +1917,7 @@ export default function App() {
                         </div>
                         <div>
                           <h4 className="text-sm font-bold block mb-0.5 group-hover:translate-x-1 transition-transform">Interactive Mock Drills</h4>
-                          <span className="text-[10px] text-indigo-200">5-question comprehensive scoring</span>
+                          <span className="text-[10px] text-indigo-200">5-question scoring</span>
                         </div>
                       </button>
 
@@ -1905,8 +1929,21 @@ export default function App() {
                           <UploadCloud className="w-5 h-5 text-indigo-400" />
                         </div>
                         <div>
-                          <h4 className="text-sm font-bold block mb-0.5 group-hover:translate-x-1 transition-transform font-sans">ATS Resume Scanner</h4>
-                          <span className="text-[10px] text-zinc-400">Optimize keywords and compliance</span>
+                          <h4 className="text-sm font-bold block mb-0.5 group-hover:translate-x-1 transition-transform font-sans">ATS Scanner</h4>
+                          <span className="text-[10px] text-zinc-400">Optimize compliance</span>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={() => setActiveTab('cloudhub')}
+                        className="bg-zinc-900 border border-zinc-800 hover:border-emerald-500/30 text-white rounded-3xl p-4 text-left transition-all duration-200 cursor-pointer hover:bg-zinc-850/80 group flex flex-col justify-between min-h-[110px]"
+                      >
+                        <div className="bg-zinc-800 p-2 rounded-2xl self-start">
+                          <Cpu className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold block mb-0.5 group-hover:translate-x-1 transition-transform font-sans">DevOps Hub</h4>
+                          <span className="text-[10px] text-zinc-400">AWS Docker CI/CD</span>
                         </div>
                       </button>
                     </div>
@@ -2005,18 +2042,64 @@ export default function App() {
                         <label className="text-[10px] font-mono uppercase text-zinc-400 block font-bold">Session Focus domain</label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            'Java',
-                            'Python',
-                            'DevOps',
-                            'AWS',
                             'Cloud Computing',
-                            'AI/ML',
-                            'Aptitude',
+                            'AWS',
+                            'GCP',
+                            'Azure',
+                            'Linux',
+                            'Docker',
+                            'Kubernetes',
+                            'Terraform',
+                            'Jenkins',
+                            'Git & GitHub',
+                            'Networking',
+                            'Cloud Security',
+                            'DevOps',
                             'STAR Behavioral',
                             'System Design',
                             'Custom'
                           ].map((dom) => {
                             const active = mockDomain === dom;
+                            
+                            // Render a relevant visual icon for each technology to improve visual scanability
+                            const renderIcon = () => {
+                              switch (dom) {
+                                case 'Cloud Computing':
+                                  return <Cloud className="w-3.5 h-3.5 text-sky-450 shrink-0" />;
+                                case 'AWS':
+                                  return <Layers className="w-3.5 h-3.5 text-amber-500 shrink-0" />;
+                                case 'GCP':
+                                  return <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+                                case 'Azure':
+                                  return <Database className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+                                case 'Linux':
+                                  return <Terminal className="w-3.5 h-3.5 text-zinc-300 shrink-0" />;
+                                case 'Docker':
+                                  return <Box className="w-3.5 h-3.5 text-cyan-400 shrink-0" />;
+                                case 'Kubernetes':
+                                  return <Cpu className="w-3.5 h-3.5 text-indigo-400 shrink-0" />;
+                                case 'Terraform':
+                                  return <HardDrive className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
+                                case 'Jenkins':
+                                  return <Play className="w-3.5 h-3.5 text-red-400 shrink-0" />;
+                                case 'Git & GitHub':
+                                  return <GitBranch className="w-3.5 h-3.5 text-orange-400 shrink-0" />;
+                                case 'Networking':
+                                  return <Network className="w-3.5 h-3.5 text-teal-400 shrink-0" />;
+                                case 'Cloud Security':
+                                  return <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />;
+                                case 'DevOps':
+                                  return <Infinity className="w-3.5 h-3.5 text-pink-400 shrink-0" />;
+                                case 'STAR Behavioral':
+                                  return <UserCheck className="w-3.5 h-3.5 text-violet-400 shrink-0" />;
+                                case 'System Design':
+                                  return <Layout className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+                                case 'Custom':
+                                default:
+                                  return <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />;
+                              }
+                            };
+
                             return (
                               <button
                                 key={dom}
@@ -2035,8 +2118,11 @@ export default function App() {
                                     : 'bg-zinc-900 text-zinc-400 border-transparent hover:bg-zinc-850'
                                 }`}
                               >
-                                <span>{dom}</span>
-                                {active && <Sparkles className="w-3 h-3 text-indigo-400" />}
+                                <div className="flex items-center space-x-2 overflow-hidden">
+                                  {renderIcon()}
+                                  <span className="truncate">{dom}</span>
+                                </div>
+                                {active && <Sparkles className="w-3 h-3 text-indigo-400 shrink-0 ml-1" />}
                               </button>
                             );
                           })}
@@ -2646,25 +2732,6 @@ export default function App() {
                     <p className="text-[11px] text-zinc-400">Upload your CV to identify optimization gaps and compute target job keyword alignments.</p>
                   </div>
 
-                  {/* File Mock Trigger button layouts */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-mono uppercase text-zinc-450 block font-bold">Fast-track Demo CV Uplink</label>
-                    <div className="grid grid-cols-2 gap-2 pb-1 bg-[#101321] p-2 rounded-2xl border border-indigo-900/10">
-                      <button
-                        onClick={() => loadDemoResume('senior')}
-                        className="text-[10.5px] p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white hover:text-indigo-300 hover:border-indigo-500/20 transition cursor-pointer"
-                      >
-                        📄 Preload Senior CV
-                      </button>
-                      <button
-                        onClick={() => loadDemoResume('junior')}
-                        className="text-[10.5px] p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-white hover:text-indigo-300 hover:border-indigo-500/20 transition cursor-pointer"
-                      >
-                        📄 Preload Junior CV
-                      </button>
-                    </div>
-                  </div>
-
                   {/* Input areas */}
                   <div className="space-y-3">
                     {/* Drag and Drop CV File Upload */}
@@ -2725,6 +2792,18 @@ export default function App() {
                     </div>
 
                     <div>
+                      <label className="text-[10px] font-mono uppercase text-zinc-400 block font-bold mb-1">Target Job Role / Title</label>
+                      <input
+                        type="text"
+                        value={targetJobRole}
+                        onChange={(e) => setTargetJobRole(e.target.value)}
+                        placeholder="e.g. Senior Full-Stack Engineer, Junior Frontend React Developer..."
+                        className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white leading-relaxed focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
                       <label className="text-[10px] font-mono uppercase text-zinc-400 block font-bold mb-1">Target Job Description</label>
                       <textarea
                         rows={3}
@@ -2781,6 +2860,46 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Job Role Suitability Status */}
+                      <div className={`p-4 rounded-3xl border transition-all ${
+                        activeResumeAnalysis.isSuitable 
+                          ? 'bg-emerald-500/5 border-emerald-500/20 text-white' 
+                          : 'bg-amber-500/5 border-amber-500/20 text-white'
+                      }`}>
+                        <div className="flex items-center space-x-2.5 mb-2">
+                          <div className={`p-1.5 rounded-xl ${
+                            activeResumeAnalysis.isSuitable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                          }`}>
+                            {activeResumeAnalysis.isSuitable ? <Check className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-mono text-zinc-400 uppercase tracking-wider block">Role Alignment Check</span>
+                            <h4 className="text-xs font-bold font-sans">
+                              Suitability Verdict: <span className={activeResumeAnalysis.isSuitable ? 'text-emerald-400' : 'text-amber-400'}>{activeResumeAnalysis.suitabilityVerdict}</span>
+                            </h4>
+                          </div>
+                        </div>
+                        <p className="text-[10.5px] text-zinc-350 leading-relaxed">{activeResumeAnalysis.suitabilityExplanation}</p>
+                      </div>
+
+                      {/* Things that must be added to the resume */}
+                      {activeResumeAnalysis.thingsToAddToResume && activeResumeAnalysis.thingsToAddToResume.length > 0 && (
+                        <div className="bg-zinc-900/40 border border-zinc-850/60 p-4 rounded-3xl space-y-2.5">
+                          <div className="flex items-center space-x-2 text-indigo-400">
+                            <PlusCircle className="w-4 h-4 shrink-0" />
+                            <h4 className="text-[10px] uppercase font-mono tracking-wider font-bold">Things Needed to be Added to Resume</h4>
+                          </div>
+                          <div className="space-y-1.5">
+                            {activeResumeAnalysis.thingsToAddToResume.map((item, i) => (
+                              <div key={i} className="flex items-start space-x-2 bg-black/20 p-2.5 rounded-xl border border-zinc-850/30">
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-400 shrink-0 mt-1.5" />
+                                <p className="text-[10.5px] text-zinc-350 leading-normal">{item}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                       {/* Keywords match check grids */}
                       <div className="bg-zinc-900/50 p-4 rounded-3xl border border-zinc-850/40 space-y-2">
@@ -2930,6 +3049,11 @@ export default function App() {
                   </div>
 
                 </div>
+              )}
+
+              {/* SCREEN 4.5: CLOUD DEPLOYMENT & DEVOPS BLUEPRINTS */}
+              {activeTab === 'cloudhub' && (
+                <CloudHub onBack={() => setActiveTab('home')} showToast={showToast} />
               )}
 
               {/* SCREEN 5: WORKSPACE PROFILE EDITORS */}

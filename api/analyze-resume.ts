@@ -11,17 +11,24 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
   }
 
-  const { fileDataBase64, mimeType = "application/pdf", textContent = "", jobDescription = "" } = req.body;
+  const { fileDataBase64, mimeType = "application/pdf", textContent = "", jobRole = "", jobDescription = "" } = req.body;
 
   const client = getGeminiClient();
   if (!client) {
-    return res.status(200).json(getSimulatedResumeAnalysis(textContent, jobDescription));
+    return res.status(200).json(getSimulatedResumeAnalysis(textContent, jobRole, jobDescription));
   }
 
   try {
     let contents: any[] = [];
 
-    const jobContext = jobDescription ? `Here is the target job description the applicant is aiming for: "${jobDescription}". Ensure your analysis performs a highly realistic applicant tracking system (ATS) match against it, including custom keyword matches.` : "Standard Industry-Wide parameters.";
+    const jobContext = `
+Target Job Role/Title: "${jobRole || "Software Engineer"}"
+Target Job Description/Requirements: "${jobDescription || "Standard Tech Industry Parameters"}"
+
+Analyze whether the applicant's resume is suitable for this specific target job role and description or not. 
+If it is not fully suitable, explain why in detail and provide a checklist of exact things (skills, achievements, experiences, or certifications) that must be added to the resume.
+Ensure your analysis performs a highly realistic, strict applicant tracking system (ATS) match against it, including custom keyword matches, and return a realistic ATS compatibility score.
+`;
 
     if (fileDataBase64) {
       const base64Clean = fileDataBase64.replace(/^data:application\/pdf;base64,/, "");
@@ -32,11 +39,11 @@ export default async function handler(req: any, res: any) {
         }
       });
       contents.push({
-        text: `Analyze the attached PDF resume. Identify the skills listed, extract professional strengths, outline areas for improvement, and deliver a concise executive summary of this applicant's competitive profile. ${jobContext}`
+        text: `Analyze the attached PDF resume for suitability. Identify the skills, extract strengths, improvements, and deliver a comprehensive ATS evaluation. ${jobContext}`
       });
     } else {
       contents.push({
-        text: `Analyze the following raw text content of a resume:\n\n${textContent}\n\nIdentify skills listed, extract professional strengths, outline direct areas for improvement, and deliver a concise executive summary. ${jobContext}`
+        text: `Analyze the following raw text content of a resume:\n\n${textContent}\n\nIdentify skills, extract strengths, improvements, and deliver a comprehensive ATS evaluation. ${jobContext}`
       });
     }
 
@@ -44,7 +51,7 @@ export default async function handler(req: any, res: any) {
       model: "gemini-3.5-flash",
       contents: contents,
       config: {
-        systemInstruction: "You are an elite talent acquisition researcher, ATS architect, and resume auditor. Extract precision, factual data.",
+        systemInstruction: "You are an elite talent acquisition researcher, ATS architect, and resume auditor. Perform an incredibly realistic, strict suitability evaluation for the given target job role and description. Do not give false praise; be highly objective and factual.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -88,9 +95,38 @@ export default async function handler(req: any, res: any) {
               type: Type.ARRAY,
               items: { type: Type.STRING },
               description: "List of high-demand technical skills missing from the resume based on target directions"
+            },
+            isSuitable: {
+              type: Type.BOOLEAN,
+              description: "True if the candidate's resume shows sufficient alignment to be suitable/interview-ready for the target job role, False if there are critical missing pieces"
+            },
+            suitabilityVerdict: {
+              type: Type.STRING,
+              description: "A short match verdict. Must be one of: 'Highly Suitable', 'Partially Suitable', or 'Not Suitable'"
+            },
+            suitabilityExplanation: {
+              type: Type.STRING,
+              description: "A detailed but concise explanation of the candidate's fit, gaps, and readiness for this specific job role."
+            },
+            thingsToAddToResume: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: "Specific skills, technologies, projects, metrics, or credentials that must be added to make this resume suitable and competitive for the target role."
             }
           },
-          required: ["skills", "strengths", "improvements", "summary", "atsScore", "keywordMatches", "missingSkills"]
+          required: [
+            "skills",
+            "strengths",
+            "improvements",
+            "summary",
+            "atsScore",
+            "keywordMatches",
+            "missingSkills",
+            "isSuitable",
+            "suitabilityVerdict",
+            "suitabilityExplanation",
+            "thingsToAddToResume"
+          ]
         }
       }
     });
@@ -104,6 +140,6 @@ export default async function handler(req: any, res: any) {
     return res.status(200).json(analysisResult);
   } catch (err: any) {
     console.error("Gemini Resume Audit failed:", err);
-    return res.status(200).json(getSimulatedResumeAnalysis(textContent, jobDescription));
+    return res.status(200).json(getSimulatedResumeAnalysis(textContent, jobRole, jobDescription));
   }
 }

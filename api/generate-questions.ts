@@ -332,7 +332,7 @@ ${cleanPinnedQuestions && cleanPinnedQuestions.length > 0 ? `- CRITICAL: Do NOT 
 
       return res.status(200).json(finalQuestions);
     } catch (err: any) {
-      console.error("Gemini AI-Only generation failed, falling back to bank:", err);
+      console.warn("Gemini AI-Only generation failed, falling back to bank (quota or API error):", err?.message || err);
       return res.status(200).json(getBankQuestionsWithPinned());
     }
   }
@@ -420,7 +420,7 @@ ${cleanPreviousQuestions && cleanPreviousQuestions.length > 0 ? `- CRITICAL: Do 
 
     return res.status(200).json(finalQuestions);
   } catch (err: any) {
-    console.error("Gemini Hybrid generation failed, falling back to full bank:", err);
+    console.warn("Gemini Hybrid generation failed, falling back to full bank (quota or API error):", err?.message || err);
     return res.status(200).json(getBankQuestionsWithPinned());
   }
 }

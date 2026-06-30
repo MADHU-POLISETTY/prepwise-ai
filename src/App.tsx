@@ -662,8 +662,8 @@ export default function App() {
     const local = localStorage.getItem('pw_resume_analysis');
     return local ? JSON.parse(local) : null;
   });
-  const [resumeFileBase64, setResumeFileBase64] = useState<string | null>(null);
-  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
+  const [resumeFileBase64, setResumeFileBase64] = useState<string | null>(() => localStorage.getItem('pw_resume_filebase64') || null);
+  const [resumeFileName, setResumeFileName] = useState<string | null>(() => localStorage.getItem('pw_resume_filename') || null);
   const [isDraggingResume, setIsDraggingResume] = useState<boolean>(false);
 
   // Pre-load Firebase Anonymous Auth for cloud writing rules alignment
@@ -1352,8 +1352,8 @@ export default function App() {
 
   // Screen 3: RESUME SCANNERS
   const handleScanResumeATS = async () => {
-    if (!resumeText.trim()) {
-      showToast("Please provide CV draft text contents first.", "error");
+    if (!resumeFileName && !resumeText.trim()) {
+      showToast("Please upload a resume file (.pdf/.txt) or paste your resume text first.", "error");
       return;
     }
     setIsScanningResume(true);
@@ -1367,14 +1367,26 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           textContent: resumeText,
-          jobRole: targetJobRole || "Software Engineer",
+          jobRole: targetJobRole || "AWS Cloud Engineer",
           jobDescription: targetJobDesc || "Standard Tech Industry Parameters",
           fileDataBase64: resumeFileBase64,
           mimeType: resumeFileName?.endsWith('.pdf') ? "application/pdf" : "text/plain"
         })
       });
 
-      if (!res.ok) throw new Error("ATS score scanner returned failure code");
+      if (!res.ok) {
+        let errMsg = "ATS score scanner returned failure code";
+        try {
+          const errData = await res.json();
+          if (errData && errData.error) {
+            errMsg = errData.error;
+          }
+        } catch (_) {}
+        showToast(errMsg, "error");
+        setIsScanningResume(false);
+        return;
+      }
+
       const analysis: ResumeAnalysisRecord = await res.json();
       setActiveResumeAnalysis(analysis);
       localStorage.setItem('pw_resume_analysis', JSON.stringify(analysis));
@@ -1586,6 +1598,9 @@ export default function App() {
         setResumeFileBase64(base64Data);
         setResumeFileName(file.name);
         setResumeText(`[Uploaded PDF Resume: ${file.name}] Raw text analysis is bypassed. The PDF file is securely uplinked for multi-modal parsing.`);
+        localStorage.setItem('pw_resume_filename', file.name);
+        localStorage.setItem('pw_resume_filebase64', base64Data);
+        localStorage.setItem('pw_resume_text', `[Uploaded PDF Resume: ${file.name}] Raw text analysis is bypassed. The PDF file is securely uplinked for multi-modal parsing.`);
         showToast(`Resume PDF "${file.name}" uploaded successfully! Ready for scanning.`, "success");
       };
       reader.readAsDataURL(file);
@@ -1595,6 +1610,9 @@ export default function App() {
         setResumeText(text);
         setResumeFileBase64(null);
         setResumeFileName(file.name);
+        localStorage.setItem('pw_resume_filename', file.name);
+        localStorage.removeItem('pw_resume_filebase64');
+        localStorage.setItem('pw_resume_text', text);
         showToast(`Resume text file "${file.name}" loaded successfully! Ready for scanning.`, "success");
       };
       reader.readAsText(file);
@@ -1605,6 +1623,9 @@ export default function App() {
     setResumeFileBase64(null);
     setResumeFileName(null);
     setResumeText('');
+    localStorage.removeItem('pw_resume_filename');
+    localStorage.removeItem('pw_resume_filebase64');
+    localStorage.removeItem('pw_resume_text');
     showToast("Uploaded resume cleared.", "info");
   };
 
@@ -2785,7 +2806,18 @@ export default function App() {
                       <textarea
                         rows={5}
                         value={resumeText}
-                        onChange={(e) => setResumeText(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setResumeText(val);
+                          localStorage.setItem('pw_resume_text', val);
+                          if (val.trim() && !resumeFileName) {
+                            setResumeFileName("Pasted Resume Text");
+                            localStorage.setItem('pw_resume_filename', "Pasted Resume Text");
+                          } else if (!val.trim() && resumeFileName === "Pasted Resume Text") {
+                            setResumeFileName(null);
+                            localStorage.removeItem('pw_resume_filename');
+                          }
+                        }}
                         placeholder="Paste plain text content of your resume/CV here..."
                         className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white leading-relaxed focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />

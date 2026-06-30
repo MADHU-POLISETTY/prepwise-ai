@@ -95,7 +95,13 @@ Please perform an in-depth, rigorous analysis of the answers. Provide:
 
     return res.status(200).json(evaluationResult);
   } catch (err: any) {
-    console.error("Gemini Interview Evaluation failed:", err);
-    return res.status(200).json(getSimulatedEvaluation(category, role, answers));
+    console.warn("Gemini Interview Evaluation rate limit or API error (gracefully falling back to local simulation):", err?.message || err);
+    const fallbackResult = getSimulatedEvaluation(category, role, answers);
+    const isQuotaError = err?.message?.includes("quota") || err?.toString()?.includes("quota") || err?.message?.includes("429") || err?.toString()?.includes("429");
+    const warningPrefix = isQuotaError 
+      ? "> ⚠️ **[API QUOTA EXCEEDED - OFFLINE AGENT FALLBACK]** Your current live Gemini API daily rate limit has been exceeded, but your overall performance has been compiled using our local scoring rules.\n\n" 
+      : "> ⚠️ **[API OFFLINE - OFFLINE AGENT FALLBACK]** Could not reach the live Gemini server, but your overall performance has been compiled using our local scoring rules.\n\n";
+    fallbackResult.feedback = warningPrefix + fallbackResult.feedback;
+    return res.status(200).json(fallbackResult);
   }
 }

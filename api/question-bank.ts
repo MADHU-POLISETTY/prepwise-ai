@@ -133,8 +133,8 @@ Ensure the questions are clear, practical, and beginner-friendly, and the answer
           });
         }
       }
-    } catch (err) {
-      console.error("Gemini fallback failed in question-bank, falling back to simulated pool:", err);
+    } catch (err: any) {
+      console.warn("Gemini fallback failed in question-bank, falling back to simulated pool (quota or API error):", err?.message || err);
     }
   }
 

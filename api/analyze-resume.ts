@@ -13,6 +13,10 @@ export default async function handler(req: any, res: any) {
 
   const { fileDataBase64, mimeType = "application/pdf", textContent = "", jobRole = "", jobDescription = "" } = req.body;
 
+  if (!fileDataBase64 && (!textContent || !textContent.trim())) {
+    return res.status(400).json({ error: "No resume content provided. Please upload a resume file (.pdf/.txt) or paste your resume text first." });
+  }
+
   const client = getGeminiClient();
   if (!client) {
     return res.status(200).json(getSimulatedResumeAnalysis(textContent, jobRole, jobDescription));
@@ -139,7 +143,14 @@ Ensure your analysis performs a highly realistic, strict applicant tracking syst
     const analysisResult = parseCleanJSON(bodyText);
     return res.status(200).json(analysisResult);
   } catch (err: any) {
-    console.error("Gemini Resume Audit failed:", err);
-    return res.status(200).json(getSimulatedResumeAnalysis(textContent, jobRole, jobDescription));
+    console.warn("Gemini Resume Audit rate limit or API error (gracefully falling back to high-quality local template):", err?.message || err);
+    const fallbackResult = getSimulatedResumeAnalysis(textContent, jobRole, jobDescription);
+    const isQuotaError = err?.message?.includes("quota") || err?.toString()?.includes("quota") || err?.message?.includes("429") || err?.toString()?.includes("429");
+    const warningPrefix = isQuotaError 
+      ? "⚠️ [API QUOTA EXCEEDED - OFFLINE AGENT FALLBACK] " 
+      : "⚠️ [API OFFLINE - OFFLINE AGENT FALLBACK] ";
+    
+    fallbackResult.summary = `${warningPrefix}Your current live Gemini API daily rate limit has been exceeded, but your resume has been parsed and scored using our local rule-based ATS evaluation framework:\n\n${fallbackResult.summary}`;
+    return res.status(200).json(fallbackResult);
   }
 }

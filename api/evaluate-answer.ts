@@ -213,7 +213,13 @@ Return your evaluation inside a valid JSON object matching this schema:
       idealAnswer
     });
   } catch (err: any) {
-    console.error("Gemini Single Answer Evaluation failed:", err);
-    return res.status(200).json(getSimulatedSingleAnswerEvaluation(question, cleanAnswer));
+    console.warn("Gemini Single Answer Evaluation rate limit or API error (gracefully falling back to local simulation):", err?.message || err);
+    const fallbackResult = getSimulatedSingleAnswerEvaluation(question, cleanAnswer);
+    const isQuotaError = err?.message?.includes("quota") || err?.toString()?.includes("quota") || err?.message?.includes("429") || err?.toString()?.includes("429");
+    const warningPrefix = isQuotaError 
+      ? "⚠️ [API QUOTA EXCEEDED - OFFLINE AGENT FALLBACK]\n" 
+      : "⚠️ [API OFFLINE - OFFLINE AGENT FALLBACK]\n";
+    fallbackResult.feedback = warningPrefix + fallbackResult.feedback;
+    return res.status(200).json(fallbackResult);
   }
 }

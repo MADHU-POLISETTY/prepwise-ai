@@ -37,7 +37,8 @@ import {
   EyeOff,
   Pin,
   Search,
-  Database
+  Database,
+  Download
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -51,6 +52,7 @@ import ReactMarkdown from 'react-markdown';
 import { collection, addDoc, getDocs, query, orderBy, limit, doc, setDoc, where } from 'firebase/firestore';
 import { signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { db, auth, isFirebaseActive, handleFirestoreError, OperationType } from './lib/firebase';
+import { exportEvaluationToPDF } from './utils/pdfExport';
 
 // Interfaces for State Management
 interface InterviewQuestion {
@@ -2517,13 +2519,23 @@ export default function App() {
                   {interviewStep === 'completed' && latestEvaluation && (
                     <div className="space-y-5 animate-fade-in">
                       
-                      <button
-                        onClick={() => setInterviewStep('setup')}
-                        className="inline-flex items-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-2.5 py-1 rounded-xl mb-1 cursor-pointer"
-                      >
-                        <ArrowLeft className="w-3.5 h-3.5" />
-                        <span>Back to Setup</span>
-                      </button>
+                      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 mb-1">
+                        <button
+                          onClick={() => setInterviewStep('setup')}
+                          className="inline-flex items-center justify-center space-x-1.5 text-xs text-zinc-400 hover:text-white transition bg-zinc-900/40 hover:bg-zinc-900 border border-zinc-850 px-3 py-1.5 rounded-xl cursor-pointer"
+                        >
+                          <ArrowLeft className="w-3.5 h-3.5" />
+                          <span>Back to Setup</span>
+                        </button>
+
+                        <button
+                          onClick={() => exportEvaluationToPDF(latestEvaluation)}
+                          className="inline-flex items-center justify-center space-x-1.5 text-xs text-white transition bg-indigo-650 hover:bg-indigo-600 border border-indigo-500/30 px-3.5 py-1.5 rounded-xl font-bold cursor-pointer active:scale-95 shadow-sm shadow-indigo-500/10"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Export PDF Report</span>
+                        </button>
+                      </div>
 
                       {/* Score circle badge */}
                       <div className="bg-gradient-to-tr from-indigo-950/40 via-[#121629] to-black border border-indigo-500/20 p-5 rounded-3xl text-center space-y-3 relative overflow-hidden">

@@ -298,12 +298,11 @@ Generate questions strictly from this category and do not include or mix other u
 
   const client = getGeminiClient();
 
-  // Helper function to build local fallback / bank questions
+  // Helper function to build local fallback / bank questions without duplicates
   const getBankQuestionsWithPinned = (): { id: number; text: string }[] => {
     const list: string[] = [...cleanPinnedQuestions];
     if (list.length < numQuestions) {
-      const remainingNeeded = numQuestions - list.length;
-      // Fetch dynamic questions from the mock pool
+      // First pass: select from mock pool excluding already seen previous questions
       const poolSimulated = getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions + 10);
       for (const simQ of poolSimulated) {
         if (list.length >= numQuestions) break;
@@ -313,10 +312,35 @@ Generate questions strictly from this category and do not include or mix other u
           list.push(simQ.text);
         }
       }
+
+      // Second pass: if we need more questions, relax previous questions check but keep list items unique
+      if (list.length < numQuestions) {
+        for (const simQ of poolSimulated) {
+          if (list.length >= numQuestions) break;
+          const alreadyInList = list.some(item => item.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+          if (!alreadyInList) {
+            list.push(simQ.text);
+          }
+        }
+      }
     }
-    // If we still need more, append default safe ones
+    // If we still need more, append default safe ones but vary them to prevent duplicates
+    const fallbackTemplates = [
+      `As a ${role} focusing on ${selectedDomain}, how do you ensure scalability and quality under tight deadlines?`,
+      `Can you discuss a complex architectural challenge you faced in ${selectedDomain} and how you resolved it?`,
+      `How do you keep up with the latest advancements, library updates, and security patches in the ${selectedDomain} ecosystem?`,
+      `Explain your typical testing and debugging strategy when working with ${selectedDomain} applications.`,
+      `Describe how you manage performance profiling and memory optimizations in a high-throughput ${selectedDomain} environment.`
+    ];
+    let templateIdx = 0;
     while (list.length < numQuestions) {
-      list.push(`As a ${role} focusing on ${selectedDomain}, how do you ensure scalability and quality under tight deadlines?`);
+      const fallbackQ = fallbackTemplates[templateIdx % fallbackTemplates.length];
+      if (!list.includes(fallbackQ)) {
+        list.push(fallbackQ);
+      } else {
+        list.push(`${fallbackQ} (Focus: Part ${Math.floor(templateIdx / fallbackTemplates.length) + 1})`);
+      }
+      templateIdx++;
     }
     return list.slice(0, numQuestions).map((text, idx) => ({ id: idx + 1, text }));
   };
@@ -691,6 +715,30 @@ Please perform an in-depth, rigorous analysis of the answers. Provide:
     }
 
     const evaluationResult = parseCleanJSON(bodyText);
+
+    // Calculate factual mathematical average of individual question scores to ground the score
+    const individualScoresSum = answers.reduce((sum: number, ans: any) => {
+      const val = typeof ans.score === 'number' ? ans.score : parseInt(ans.score as any) || 0;
+      return sum + val;
+    }, 0);
+    const maxScorePossible = answers.length * 10;
+    const mathAvgScorePercent = maxScorePossible > 0 ? Math.round((individualScoresSum / maxScorePossible) * 100) : 0;
+
+    evaluationResult.score = mathAvgScorePercent;
+
+    // Align other metrics consistently with actual performance
+    const clampSubScore = (subScore: any) => {
+      if (mathAvgScorePercent === 0) return 0;
+      const parsedSub = typeof subScore === 'number' ? subScore : parseInt(subScore) || 50;
+      return Math.min(100, Math.max(0, Math.min(parsedSub, mathAvgScorePercent + 10)));
+    };
+
+    evaluationResult.communicationScore = clampSubScore(evaluationResult.communicationScore);
+    evaluationResult.technicalScore = clampSubScore(evaluationResult.technicalScore);
+    evaluationResult.confidenceScore = clampSubScore(evaluationResult.confidenceScore);
+    evaluationResult.problemSolvingScore = clampSubScore(evaluationResult.problemSolvingScore);
+    evaluationResult.clarityScore = clampSubScore(evaluationResult.clarityScore);
+
     res.json(evaluationResult);
   } catch (err: any) {
     console.error("Gemini Interview Evaluation failed:", err);
@@ -1039,15 +1087,48 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
   // Take the required number of questions, up to pool size
   const selectedQuestions = pool.slice(0, numQuestions);
   
-  // If pool didn't have enough, fill with domain-safe questions
+  // If pool didn't have enough, fill with domain-safe distinct questions
+  const defaultAptitude = [
+    `Solve this problem: If 3 books cost $15, how much do 6 books cost?\nA) $20\nB) $25\nC) $30\nD) $35`,
+    `A train running at the speed of 60 km/hr crosses a pole in 9 seconds. What is the length of the train?\nA) 120 metres\nB) 150 metres\nC) 324 metres\nD) 180 metres`,
+    `Find the odd one out: 3, 5, 11, 14, 17, 21\nA) 14\nB) 17\nC) 21\nD) 11`,
+    `A sum of money at simple interest amounts to $815 in 3 years and to $854 in 4 years. The sum is:\nA) $650\nB) $690\nC) $698\nD) $700`,
+    `If a person walks at 14 km/hr instead of 10 km/hr, he would have walked 20 km more. The actual distance travelled by him is:\nA) 50 km\nB) 56 km\nC) 70 km\nD) 80 km`
+  ];
+
+  const defaultHR = [
+    `Tell me about a situation where you had to work with a teammate whose working style was different from yours.`,
+    `Describe a time when you faced a major obstacle at work and how you overcame it.`,
+    `Why do you want to join our team, and how does your career vision align with this role?`,
+    `Can you describe a time when you had to explain a complex technical concept to a non-technical stakeholder?`,
+    `Tell me about a time when you made a mistake on a project. How did you handle it and what did you learn?`
+  ];
+
+  const defaultTechnical = [
+    `As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`,
+    `What are your preferred strategies for debugging complex asynchronous failures or memory leaks in a production environment?`,
+    `Describe a system architecture design pattern you frequently use when building scalable solutions as a ${role}.`,
+    `How do you approach writing clean, maintainable, and well-tested code for enterprise projects?`,
+    `Can you walk through your process for performing comprehensive code reviews within your engineering team?`
+  ];
+
+  let fallbackIdx = 0;
   while (selectedQuestions.length < numQuestions) {
+    let nextQ = "";
     if (searchStr.includes("aptitude")) {
-      selectedQuestions.push(`Solve this problem: If 3 books cost $15, how much do 6 books cost?\nA) $20\nB) $25\nC) $30\nD) $35`);
+      nextQ = defaultAptitude[fallbackIdx % defaultAptitude.length];
     } else if (searchStr.includes("hr") || searchStr.includes("behavioral")) {
-      selectedQuestions.push(`Tell me about a situation where you had to work with a teammate whose working style was different from yours.`);
+      nextQ = defaultHR[fallbackIdx % defaultHR.length];
     } else {
-      selectedQuestions.push(`As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`);
+      nextQ = defaultTechnical[fallbackIdx % defaultTechnical.length];
     }
+
+    if (!selectedQuestions.includes(nextQ)) {
+      selectedQuestions.push(nextQ);
+    } else {
+      selectedQuestions.push(`${nextQ} (Vary: Option ${Math.floor(fallbackIdx / 5) + 1})`);
+    }
+    fallbackIdx++;
   }
   
   return selectedQuestions.map((text, index) => ({
@@ -1167,56 +1248,21 @@ function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {
 }
 
 function getSimulatedEvaluation(category: string, role: string, answers: any[]) {
-  // strict grading heuristics for the simulated/fallback mode
-  let scoreBase = 10; // Start with a very low baseline
-  let totalLength = 0;
-  let validAnswersCount = 0;
-
-  answers.forEach(a => {
-    const text = (a.answerText || "").trim();
-    if (text.length > 0) {
-      totalLength += text.length;
-      
-      // Filter out low quality non-answers like "idk", "aaaa", "asdf"
-      const isRepeated = /(.)\1{3,}/.test(text); // e.g. aaaa
-      const isGibberish = text.length < 10 && (
-        /asdf/i.test(text) || 
-        /test/i.test(text) || 
-        /none/i.test(text) || 
-        /idk/i.test(text) || 
-        /don't know/i.test(text) ||
-        /skip/i.test(text) ||
-        /hello/i.test(text)
-      );
-
-      if (!isRepeated && !isGibberish && text.length >= 10) {
-        validAnswersCount++;
-        // Grant score based on detailed response depth
-        if (text.length > 150) {
-          scoreBase += 16; // excellent elaborate STAR structure
-        } else if (text.length > 60) {
-          scoreBase += 12; // decent standard structure
-        } else {
-          scoreBase += 6; // brief answer
-        }
-      }
-    }
-  });
-
-  // Cap scoreBase based on submission compliance
-  if (answers.length === 0) {
-    scoreBase = 0;
-  } else if (validAnswersCount === 0) {
-    scoreBase = Math.min(15, scoreBase); // extremely low for empty/nonsense submissions
-  }
+  // Calculate factual mathematical average of individual question scores
+  const individualScoresSum = answers.reduce((sum: number, ans: any) => {
+    const val = typeof ans.score === 'number' ? ans.score : parseInt(ans.score as any) || 0;
+    return sum + val;
+  }, 0);
+  const maxScorePossible = answers.length * 10;
+  const mathAvgScorePercent = maxScorePossible > 0 ? Math.round((individualScoresSum / maxScorePossible) * 100) : 0;
 
   // Calculate scores with subtle randomness but strictly bounded by quality
-  const rawScore = Math.min(96, Math.max(5, scoreBase));
-  const communication = Math.round(rawScore + (Math.random() * 4 - 2));
-  const technical = Math.round(rawScore + (Math.random() * 6 - 3));
-  const confidence = Math.round(rawScore + (Math.random() * 4 - 2));
-  const problemSolving = Math.round(rawScore + (Math.random() * 6 - 2));
-  const clarity = Math.round(rawScore + (Math.random() * 4 - 2));
+  const rawScore = mathAvgScorePercent;
+  const communication = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  const technical = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 6 - 3))));
+  const confidence = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  const problemSolving = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 6 - 2))));
+  const clarity = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
   
   const finalScore = Math.round((communication + technical + confidence + problemSolving + clarity) / 5);
 

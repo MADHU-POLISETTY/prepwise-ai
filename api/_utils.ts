@@ -1,3 +1,4 @@
+process.noDeprecation = true;
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 

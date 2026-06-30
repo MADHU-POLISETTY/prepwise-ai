@@ -597,6 +597,9 @@ export default function App() {
   const [bankQuestions, setBankQuestions] = useState<string[]>([]);
   const [bankLoading, setBankLoading] = useState<boolean>(false);
   const [bankSearchQuery, setBankSearchQuery] = useState<string>('');
+  const [bankSubTab, setBankSubTab] = useState<'vault' | 'custom'>('vault');
+  const [customQuestionInput, setCustomQuestionInput] = useState<string>('');
+  const [isDraggingQuestions, setIsDraggingQuestions] = useState<boolean>(false);
 
   // Fetch question bank questions for the currently selected domain
   useEffect(() => {
@@ -625,10 +628,10 @@ export default function App() {
     fetchBankQuestions();
   }, [mockDomain, customDomainText, mockFocusTopic]);
 
-  // Clear pinned questions on domain changes to preserve isolation
+  // Clear pinned questions on major domain changes to preserve isolation (exclude customDomainText to prevent keystroke wipeout)
   useEffect(() => {
     setPinnedQuestions([]);
-  }, [mockDomain, customDomainText, mockFocusTopic]);
+  }, [mockDomain, mockFocusTopic]);
 
   // Interactive Screen 3: Resume Scan states
   const [resumeText, setResumeText] = useState<string>(() => localStorage.getItem('pw_resume_text') || '');
@@ -638,6 +641,9 @@ export default function App() {
     const local = localStorage.getItem('pw_resume_analysis');
     return local ? JSON.parse(local) : null;
   });
+  const [resumeFileBase64, setResumeFileBase64] = useState<string | null>(null);
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
+  const [isDraggingResume, setIsDraggingResume] = useState<boolean>(false);
 
   // Pre-load Firebase Anonymous Auth for cloud writing rules alignment
   useEffect(() => {
@@ -1339,7 +1345,9 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           textContent: resumeText,
-          jobDescription: targetJobDesc || "Standard Tech Industry Parameters"
+          jobDescription: targetJobDesc || "Standard Tech Industry Parameters",
+          fileDataBase64: resumeFileBase64,
+          mimeType: resumeFileName?.endsWith('.pdf') ? "application/pdf" : "text/plain"
         })
       });
 
@@ -1397,6 +1405,195 @@ export default function App() {
     setResumeText(text);
     setTargetJobDesc(jd);
     showToast("Template demo uploaded successfully", "info");
+  };
+
+  // Handle adding custom question manually
+  const handleAddManualQuestion = () => {
+    const trimmed = customQuestionInput.trim();
+    if (!trimmed) {
+      showToast("Please write custom question text first.", "error");
+      return;
+    }
+    if (trimmed.length < 5) {
+      showToast("Question must be at least 5 characters.", "error");
+      return;
+    }
+    setBankQuestions(prev => {
+      if (prev.includes(trimmed)) return prev;
+      return [trimmed, ...prev];
+    });
+    setPinnedQuestions(prev => {
+      if (prev.includes(trimmed)) return prev;
+      const newPinned = [...prev, trimmed];
+      if (newPinned.length > mockNumQuestions) {
+        setMockNumQuestions(newPinned.length);
+      }
+      return newPinned;
+    });
+    setCustomQuestionInput('');
+    showToast("Custom question successfully added & pinned!", "success");
+  };
+
+  // Process text or json question lists
+  const processUploadedQuestions = (text: string, fileName: string) => {
+    if (!text.trim()) {
+      showToast("The file is empty.", "error");
+      return;
+    }
+
+    let parsedQuestions: string[] = [];
+
+    if (fileName.toLowerCase().endsWith('.json')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          parsedQuestions = parsed.map((item: any) => {
+            if (typeof item === 'string') return item.trim();
+            if (typeof item === 'object' && item !== null) {
+              return (item.text || item.question || item.qText || "").trim();
+            }
+            return "";
+          }).filter(q => q.length > 5);
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          const possibleArray = parsed.questions || parsed.list || parsed.data || parsed.questionsList;
+          if (Array.isArray(possibleArray)) {
+            parsedQuestions = possibleArray.map((item: any) => {
+              if (typeof item === 'string') return item.trim();
+              if (typeof item === 'object' && item !== null) {
+                return (item.text || item.question || item.qText || "").trim();
+              }
+              return "";
+            }).filter(q => q.length > 5);
+          }
+        }
+      } catch (err) {
+        showToast("Failed to parse JSON file structure.", "error");
+        return;
+      }
+    } else {
+      // Treat as .txt or other text file
+      parsedQuestions = text.split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 5 && !l.startsWith('#') && !l.startsWith('//'));
+    }
+
+    if (parsedQuestions.length === 0) {
+      showToast("No valid questions found in uploaded file (must be > 5 characters each).", "error");
+      return;
+    }
+
+    setBankQuestions(prev => {
+      const unique = parsedQuestions.filter(q => !prev.includes(q));
+      return [...unique, ...prev];
+    });
+
+    setPinnedQuestions(prev => {
+      const unique = parsedQuestions.filter(q => !prev.includes(q));
+      const newPinned = [...prev, ...unique];
+      if (newPinned.length > mockNumQuestions) {
+        setMockNumQuestions(newPinned.length);
+      }
+      return newPinned;
+    });
+
+    showToast(`Uploaded and pinned ${parsedQuestions.length} custom questions!`, "success");
+  };
+
+  // File drop and select handlers for questions
+  const handleQuestionsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      processUploadedQuestions(content, file.name);
+    };
+    reader.readAsText(file);
+  };
+
+  // Drag and drop events for questions
+  const handleQuestionsDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingQuestions(true);
+  };
+
+  const handleQuestionsDragLeave = () => {
+    setIsDraggingQuestions(false);
+  };
+
+  const handleQuestionsDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingQuestions(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      processUploadedQuestions(content, file.name);
+    };
+    reader.readAsText(file);
+  };
+
+  // File select and drag-drop handlers for Resume PDF/TXT
+  const handleResumeFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processResumeFile(file);
+  };
+
+  const handleResumeDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingResume(true);
+  };
+
+  const handleResumeDragLeave = () => {
+    setIsDraggingResume(false);
+  };
+
+  const handleResumeDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingResume(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processResumeFile(file);
+  };
+
+  const processResumeFile = (file: File) => {
+    const isPDF = file.name.toLowerCase().endsWith('.pdf');
+    const isTXT = file.name.toLowerCase().endsWith('.txt');
+
+    if (!isPDF && !isTXT) {
+      showToast("Please upload a .pdf or .txt file only.", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    if (isPDF) {
+      reader.onload = (e) => {
+        const base64Data = e.target?.result as string;
+        setResumeFileBase64(base64Data);
+        setResumeFileName(file.name);
+        setResumeText(`[Uploaded PDF Resume: ${file.name}] Raw text analysis is bypassed. The PDF file is securely uplinked for multi-modal parsing.`);
+        showToast(`Resume PDF "${file.name}" uploaded successfully! Ready for scanning.`, "success");
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setResumeText(text);
+        setResumeFileBase64(null);
+        setResumeFileName(file.name);
+        showToast(`Resume text file "${file.name}" loaded successfully! Ready for scanning.`, "success");
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const clearResumeFile = () => {
+    setResumeFileBase64(null);
+    setResumeFileName(null);
+    setResumeText('');
+    showToast("Uploaded resume cleared.", "info");
   };
 
   return (
@@ -1979,7 +2176,7 @@ export default function App() {
 
                         {/* Interactive Curated Question Bank Explorer */}
                         {(questionMode === 'bank' || questionMode === 'hybrid') && (
-                          <div className="bg-zinc-900/50 border border-zinc-850 rounded-2xl p-3.5 space-y-3 mt-1.5">
+                          <div className="bg-zinc-900/50 border border-zinc-850 rounded-2xl p-3.5 space-y-3.5 mt-1.5">
                             <div className="flex justify-between items-center">
                               <div className="space-y-0.5">
                                 <h4 className="text-[11.5px] font-bold text-white flex items-center space-x-1.5">
@@ -1987,7 +2184,7 @@ export default function App() {
                                   <span>Curated Database Explorer</span>
                                 </h4>
                                 <p className="text-[9.5px] text-zinc-400">
-                                  Select/Pin custom questions to include them in your session.
+                                  Select, pin, or upload custom questions for your session.
                                 </p>
                               </div>
                               <span className="text-[9px] font-mono bg-zinc-850 text-indigo-400 px-2 py-0.5 rounded-full font-bold">
@@ -1995,79 +2192,158 @@ export default function App() {
                               </span>
                             </div>
 
-                            {/* Search bar for questions */}
-                            <div className="relative">
-                              <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-500" />
-                              <input
-                                type="text"
-                                value={bankSearchQuery}
-                                onChange={(e) => setBankSearchQuery(e.target.value)}
-                                placeholder="Search verified questions..."
-                                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-1.5 pl-8 pr-3 text-[10.5px] text-white focus:outline-none focus:border-indigo-500"
-                              />
+                            {/* Vault / Custom Tabs */}
+                            <div className="flex border-b border-zinc-800/80 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => setBankSubTab('vault')}
+                                className={`pb-1.5 text-[10.5px] font-bold transition-all relative ${
+                                  bankSubTab === 'vault' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-zinc-400 hover:text-white'
+                                }`}
+                              >
+                                Curated Vault
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setBankSubTab('custom')}
+                                className={`pb-1.5 text-[10.5px] font-bold transition-all relative ${
+                                  bankSubTab === 'custom' ? 'text-indigo-400 border-b-2 border-indigo-500' : 'text-zinc-400 hover:text-white'
+                                }`}
+                              >
+                                Upload / Add Custom
+                              </button>
                             </div>
 
-                            {/* Question List container */}
-                            <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
-                              {bankLoading ? (
-                                <div className="text-center py-6 text-zinc-550 text-[10px] font-mono flex items-center justify-center space-x-2">
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                  <span>Syncing question vault...</span>
+                            {bankSubTab === 'vault' ? (
+                              <>
+                                {/* Search bar for questions */}
+                                <div className="relative">
+                                  <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-zinc-500" />
+                                  <input
+                                    type="text"
+                                    value={bankSearchQuery}
+                                    onChange={(e) => setBankSearchQuery(e.target.value)}
+                                    placeholder="Search verified questions..."
+                                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl py-1.5 pl-8 pr-3 text-[10.5px] text-white focus:outline-none focus:border-indigo-500"
+                                  />
                                 </div>
-                              ) : bankQuestions.length === 0 ? (
-                                <div className="text-center py-6 text-zinc-500 text-[10.5px]">
-                                  No curated questions in vault for this topic. Define custom topic or search details.
+
+                                {/* Question List container */}
+                                <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-zinc-800">
+                                  {bankLoading ? (
+                                    <div className="text-center py-6 text-zinc-550 text-[10px] font-mono flex items-center justify-center space-x-2">
+                                      <RefreshCw className="w-3 h-3 animate-spin" />
+                                      <span>Syncing question vault...</span>
+                                    </div>
+                                  ) : bankQuestions.length === 0 ? (
+                                    <div className="text-center py-6 text-zinc-500 text-[10.5px]">
+                                      No curated questions in vault for this topic. Define custom topic or search details.
+                                    </div>
+                                  ) : (
+                                    bankQuestions
+                                      .filter(text => text.toLowerCase().includes(bankSearchQuery.toLowerCase()))
+                                      .map((qText, idx) => {
+                                        const isPinned = pinnedQuestions.includes(qText);
+                                        return (
+                                          <button
+                                            key={idx}
+                                            type="button"
+                                            onClick={() => {
+                                              if (isPinned) {
+                                                setPinnedQuestions(prev => prev.filter(item => item !== qText));
+                                              } else {
+                                                if (pinnedQuestions.length >= mockNumQuestions) {
+                                                  // Auto-increase the total count if they pin more questions than requested
+                                                  setMockNumQuestions(pinnedQuestions.length + 1);
+                                                }
+                                                setPinnedQuestions(prev => [...prev, qText]);
+                                              }
+                                            }}
+                                            className={`w-full p-2.5 rounded-xl border text-left text-[10.5px] transition-all cursor-pointer flex items-start space-x-2.5 ${
+                                              isPinned
+                                                ? 'bg-indigo-650/10 border-indigo-500/80 text-white shadow-sm'
+                                                : 'bg-zinc-900 border-zinc-850 hover:border-zinc-700 text-zinc-300'
+                                            }`}
+                                          >
+                                            <div className="mt-0.5 shrink-0">
+                                              {isPinned ? (
+                                                <div className="w-3.5 h-3.5 rounded bg-indigo-500 flex items-center justify-center text-white">
+                                                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                                </div>
+                                              ) : (
+                                                <div className="w-3.5 h-3.5 rounded border border-zinc-700 bg-zinc-950 flex items-center justify-center text-transparent hover:border-indigo-500">
+                                                  <Pin className="w-2 h-2" />
+                                                </div>
+                                              )}
+                                            </div>
+                                            <div className="flex-1 space-y-0.5">
+                                              <p className="leading-relaxed font-sans">{qText}</p>
+                                              {isPinned && (
+                                                <span className="inline-flex items-center text-[8px] font-mono font-bold text-indigo-400 tracking-wider uppercase">
+                                                  Pinned for Session
+                                                </span>
+                                              )}
+                                            </div>
+                                          </button>
+                                        );
+                                      })
+                                  )}
                                 </div>
-                              ) : (
-                                bankQuestions
-                                  .filter(text => text.toLowerCase().includes(bankSearchQuery.toLowerCase()))
-                                  .map((qText, idx) => {
-                                    const isPinned = pinnedQuestions.includes(qText);
-                                    return (
-                                      <button
-                                        key={idx}
-                                        type="button"
-                                        onClick={() => {
-                                          if (isPinned) {
-                                            setPinnedQuestions(prev => prev.filter(item => item !== qText));
-                                          } else {
-                                            if (pinnedQuestions.length >= mockNumQuestions) {
-                                              // Auto-increase the total count if they pin more questions than requested
-                                              setMockNumQuestions(pinnedQuestions.length + 1);
-                                            }
-                                            setPinnedQuestions(prev => [...prev, qText]);
-                                          }
-                                        }}
-                                        className={`w-full p-2.5 rounded-xl border text-left text-[10.5px] transition-all cursor-pointer flex items-start space-x-2.5 ${
-                                          isPinned
-                                            ? 'bg-indigo-650/10 border-indigo-500/80 text-white shadow-sm'
-                                            : 'bg-zinc-900 border-zinc-850 hover:border-zinc-700 text-zinc-300'
-                                        }`}
-                                      >
-                                        <div className="mt-0.5 shrink-0">
-                                          {isPinned ? (
-                                            <div className="w-3.5 h-3.5 rounded bg-indigo-500 flex items-center justify-center text-white">
-                                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                                            </div>
-                                          ) : (
-                                            <div className="w-3.5 h-3.5 rounded border border-zinc-700 bg-zinc-950 flex items-center justify-center text-transparent hover:border-indigo-500">
-                                              <Pin className="w-2 h-2" />
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="flex-1 space-y-0.5">
-                                          <p className="leading-relaxed font-sans">{qText}</p>
-                                          {isPinned && (
-                                            <span className="inline-flex items-center text-[8px] font-mono font-bold text-indigo-400 tracking-wider uppercase">
-                                              Pinned for Session
-                                            </span>
-                                          )}
-                                        </div>
-                                      </button>
-                                    );
-                                  })
-                              )}
-                            </div>
+                              </>
+                            ) : (
+                              <div className="space-y-3">
+                                {/* File Drag and Drop Zone */}
+                                <div
+                                  onDragOver={handleQuestionsDragOver}
+                                  onDragLeave={handleQuestionsDragLeave}
+                                  onDrop={handleQuestionsDrop}
+                                  onClick={() => document.getElementById('questions-file-upload-input')?.click()}
+                                  className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
+                                    isDraggingQuestions
+                                      ? 'border-indigo-500 bg-indigo-500/10'
+                                      : 'border-zinc-800 bg-zinc-950/40 hover:border-zinc-700 hover:bg-zinc-900/10'
+                                  }`}
+                                >
+                                  <input
+                                    type="file"
+                                    id="questions-file-upload-input"
+                                    accept=".txt,.json"
+                                    onChange={handleQuestionsFileChange}
+                                    className="hidden"
+                                  />
+                                  <UploadCloud className="w-6 h-6 text-indigo-400 mx-auto mb-1.5" />
+                                  <p className="text-[10.5px] font-bold text-white">Drag & drop questions file here</p>
+                                  <p className="text-[9px] text-zinc-400 mt-0.5">Supports .txt (one per line) or .json list format</p>
+                                </div>
+
+                                {/* Manual Question Add input */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-mono uppercase text-zinc-400 block font-bold">Or Add Manually</label>
+                                  <div className="flex gap-1.5">
+                                    <input
+                                      type="text"
+                                      value={customQuestionInput}
+                                      onChange={(e) => setCustomQuestionInput(e.target.value)}
+                                      placeholder="Type your own interview question to practice..."
+                                      className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl py-1.5 px-3 text-[10.5px] text-white focus:outline-none focus:border-indigo-500"
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleAddManualQuestion();
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={handleAddManualQuestion}
+                                      className="bg-indigo-650 hover:bg-indigo-600 text-white text-[10.5px] font-bold py-1.5 px-3.5 rounded-xl cursor-pointer shadow-sm transition-all shrink-0 active:scale-95"
+                                    >
+                                      Add & Pin
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
 
@@ -2379,8 +2655,54 @@ export default function App() {
 
                   {/* Input areas */}
                   <div className="space-y-3">
+                    {/* Drag and Drop CV File Upload */}
+                    <div
+                      onDragOver={handleResumeDragOver}
+                      onDragLeave={handleResumeDragLeave}
+                      onDrop={handleResumeDrop}
+                      onClick={() => document.getElementById('resume-file-upload-input')?.click()}
+                      className={`border-2 border-dashed rounded-2xl p-4.5 text-center cursor-pointer transition-all ${
+                        isDraggingResume
+                          ? 'border-indigo-500 bg-indigo-500/10'
+                          : 'border-zinc-800 bg-zinc-900/30 hover:border-zinc-700 hover:bg-zinc-900/50'
+                      }`}
+                    >
+                      <input
+                        type="file"
+                        id="resume-file-upload-input"
+                        accept=".pdf,.txt"
+                        onChange={handleResumeFileChange}
+                        className="hidden"
+                      />
+                      <UploadCloud className="w-7 h-7 text-indigo-400 mx-auto mb-2" />
+                      {resumeFileName ? (
+                        <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center space-x-2">
+                            <span className="text-[11px] font-mono text-indigo-300 font-bold max-w-[200px] truncate">
+                              📄 {resumeFileName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={clearResumeFile}
+                              className="text-zinc-550 hover:text-red-400 p-0.5 cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <p className="text-[9px] text-zinc-400">
+                            {resumeFileName.endsWith('.pdf') ? 'PDF file loaded. Multi-modal parsing is queued!' : 'Text file content loaded!'}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[11px] font-bold text-white">Drag & drop your Resume (CV) file here, or click to browse</p>
+                          <p className="text-[9.5px] text-zinc-400 mt-1">Supports PDF or plain TXT files</p>
+                        </div>
+                      )}
+                    </div>
+
                     <div>
-                      <label className="text-[10px] font-mono uppercase text-zinc-400 block font-bold mb-1">Paste Resume/CV Text</label>
+                      <label className="text-[10px] font-mono uppercase text-zinc-400 block font-bold mb-1">Or Paste Resume/CV Text</label>
                       <textarea
                         rows={5}
                         value={resumeText}

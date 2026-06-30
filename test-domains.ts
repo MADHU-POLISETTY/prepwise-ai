@@ -1,4 +1,4 @@
-import { getSimulatedQuestions } from "./server.js";
+import { getSimulatedQuestions } from "./api/_utils.js";
 
 interface DomainTest {
   name: string;

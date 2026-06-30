@@ -1661,10 +1661,11 @@ export default function App() {
               <span className="absolute -bottom-1.5 -right-1.5 bg-emerald-500 text-[8.5px] font-mono font-black uppercase text-black px-1.5 py-0.5 rounded-md tracking-wider">PREP</span>
             </div>
 
-            <div className="space-y-2 text-center">
+            <div className="space-y-3 text-center">
               <h1 className="text-3xl font-black tracking-tight text-white uppercase font-sans">PrepWise AI</h1>
-              <p className="text-[11px] text-zinc-400 font-sans leading-relaxed max-w-[260px] mx-auto">
-                Master AWS, GCP, Azure, Docker, Kubernetes, Linux, Terraform, and DevOps interviews with AI-powered practice sessions.
+              <p className="text-xs text-indigo-400 font-mono uppercase tracking-wider font-extrabold">AI-Powered Cloud & DevOps Interview Coach</p>
+              <p className="text-[11px] text-zinc-400 font-sans leading-relaxed max-w-[280px] mx-auto">
+                Master AWS, Docker, Kubernetes, Terraform, Jenkins, Linux, and Cloud Security interviews with AI-powered practice sessions.
               </p>
             </div>
 
@@ -1876,14 +1877,20 @@ export default function App() {
                   </div>
 
                   {/* Cloud Interview Prep Tagline Banner */}
-                  <div className="bg-gradient-to-r from-indigo-950/20 via-indigo-900/10 to-transparent p-4 rounded-3xl border border-indigo-950/40 flex items-center space-x-3.5 relative overflow-hidden">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-600/15 text-indigo-400 border border-indigo-500/15 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-5 h-5 animate-pulse text-indigo-400 fill-indigo-400/10" />
-                    </div>
-                    <div>
-                      <p className="text-[11px] text-zinc-300 leading-relaxed font-sans">
-                        Master <span className="text-indigo-400 font-extrabold">AWS</span>, <span className="text-indigo-400 font-extrabold">GCP</span>, <span className="text-indigo-400 font-extrabold">Azure</span>, <span className="text-indigo-400 font-extrabold">Docker</span>, <span className="text-indigo-400 font-extrabold">Kubernetes</span>, <span className="text-indigo-400 font-extrabold">Linux</span>, <span className="text-indigo-400 font-extrabold">Terraform</span>, and <span className="text-indigo-400 font-extrabold">DevOps</span> interviews with AI-powered practice sessions.
-                      </p>
+                  <div className="bg-gradient-to-br from-indigo-950/30 via-[#0c0f18] to-black p-5 rounded-3xl border border-indigo-500/15 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.05),transparent_60%)] pointer-events-none" />
+                    <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
+                      <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-6 h-6 animate-pulse text-indigo-400 fill-indigo-400/10" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <h2 className="text-sm font-extrabold text-white tracking-tight">
+                          PrepWise AI – <span className="text-indigo-400">AI-Powered Cloud & DevOps Interview Coach</span>
+                        </h2>
+                        <p className="text-[11px] text-zinc-400 leading-relaxed font-sans">
+                          Master <span className="text-indigo-300 font-medium">AWS</span>, <span className="text-indigo-300 font-medium">Docker</span>, <span className="text-indigo-300 font-medium">Kubernetes</span>, <span className="text-indigo-300 font-medium">Terraform</span>, <span className="text-indigo-300 font-medium">Jenkins</span>, <span className="text-indigo-300 font-medium">Linux</span>, and <span className="text-indigo-300 font-medium">Cloud Security</span> interviews with AI-powered practice sessions.
+                        </p>
+                      </div>
                     </div>
                   </div>
 

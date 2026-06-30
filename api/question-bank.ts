@@ -4,6 +4,13 @@ import { dockerQuestions } from "./docker.js";
 import { linuxQuestions } from "./linux.js";
 import { gitQuestions } from "./git.js";
 import { awsQuestions } from "./aws.js";
+import { kubernetesQuestions } from "./kubernetes.js";
+import { terraformQuestions } from "./terraform.js";
+import { jenkinsQuestions } from "./jenkins.js";
+import { networkingQuestions } from "./networking.js";
+import { cloudSecurityQuestions } from "./cloud-security.js";
+import { azureQuestions } from "./azure.js";
+import { gcpQuestions } from "./gcp.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET" && req.method !== "POST") {
@@ -39,20 +46,20 @@ export default async function handler(req: any, res: any) {
     questionsPool = gitQuestions;
   } else if (trimmedDomain === "aws" || trimmedDomain.includes("aws")) {
     questionsPool = awsQuestions;
+  } else if (trimmedDomain === "kubernetes" || trimmedDomain === "k8s" || trimmedDomain.includes("kubernetes") || trimmedDomain.includes("k8s")) {
+    questionsPool = kubernetesQuestions;
+  } else if (trimmedDomain === "terraform" || trimmedDomain.includes("terraform")) {
+    questionsPool = terraformQuestions;
+  } else if (trimmedDomain === "jenkins" || trimmedDomain.includes("jenkins")) {
+    questionsPool = jenkinsQuestions;
+  } else if (trimmedDomain === "networking" || trimmedDomain.includes("networking")) {
+    questionsPool = networkingQuestions;
+  } else if (trimmedDomain === "security" || trimmedDomain.includes("security") || trimmedDomain.includes("cloud security")) {
+    questionsPool = cloudSecurityQuestions;
   } else if (trimmedDomain === "gcp" || trimmedDomain.includes("gcp") || trimmedDomain.includes("google cloud")) {
-    const list = getQuestionBankPool("gcp", "Cloud Engineer", "Medium");
-    questionsPool = list.map((q, i) => ({
-      id: i + 1,
-      question: q,
-      answer: "A production-grade Google Cloud (GCP) solution requires proper IAM resource inheritance, efficient global VPC setup, and robust serverless or container orchestration with Cloud Run / GKE."
-    }));
+    questionsPool = gcpQuestions;
   } else if (trimmedDomain === "azure" || trimmedDomain.includes("azure") || trimmedDomain.includes("microsoft azure") || trimmedDomain.includes("azzure")) {
-    const list = getQuestionBankPool("azure", "Cloud Engineer", "Medium");
-    questionsPool = list.map((q, i) => ({
-      id: i + 1,
-      question: q,
-      answer: "An enterprise-grade Microsoft Azure deployment relies on secure ARM Resource Groups, Entra ID (Azure AD) access controls, and managed compute such as App Services or AKS."
-    }));
+    questionsPool = azureQuestions;
   } else if (trimmedDomain === "cloud computing" || trimmedDomain.includes("cloud computing") || trimmedDomain === "cloud") {
     const list = getQuestionBankPool("cloud computing", "Cloud Engineer", "Medium");
     questionsPool = list.map((q, i) => ({

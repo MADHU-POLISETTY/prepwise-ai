@@ -1,4 +1,4 @@
-import { getQuestionBankPool, getGeminiClient, parseCleanJSON } from "./_utils.js";
+import { getQuestionBankPool, getGeminiClient, parseCleanJSON } from "../_utils.js";
 import { Type } from "@google/genai";
 import { dockerQuestions } from "./docker.js";
 import { linuxQuestions } from "./linux.js";

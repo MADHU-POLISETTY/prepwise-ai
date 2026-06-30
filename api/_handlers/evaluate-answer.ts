@@ -6,7 +6,7 @@ import {
   getEmbedding,
   cosineSimilarity,
   isGibberishOrInvalid
-} from "./_utils.js";
+} from "../_utils.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {

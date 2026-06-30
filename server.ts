@@ -5,13 +5,13 @@ import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 
 // Import Vercel API handlers directly so there is absolutely NO discrepancy or code duplication!
-import healthHandler from "./api/health.js";
-import generateQuestionsHandler from "./api/generate-questions.js";
-import questionBankHandler from "./api/question-bank.js";
-import evaluateAnswerHandler from "./api/evaluate-answer.js";
-import evaluateInterviewHandler from "./api/evaluate-interview.js";
-import analyzeResumeHandler from "./api/analyze-resume.js";
-import askMsHandler from "./api/ask-ms.js";
+import healthHandler from "./api/_handlers/health.js";
+import generateQuestionsHandler from "./api/_handlers/generate-questions.js";
+import questionBankHandler from "./api/_handlers/question-bank.js";
+import evaluateAnswerHandler from "./api/_handlers/evaluate-answer.js";
+import evaluateInterviewHandler from "./api/_handlers/evaluate-interview.js";
+import analyzeResumeHandler from "./api/_handlers/analyze-resume.js";
+import askMsHandler from "./api/_handlers/ask-ms.js";
 
 dotenv.config();
 

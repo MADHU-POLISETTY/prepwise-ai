@@ -1,4 +1,4 @@
-import { getGeminiClient } from "./_utils.ts";
+import { getGeminiClient } from "./_utils.js";
 
 export default async function handler(req: any, res: any) {
   // Allow health check on GET

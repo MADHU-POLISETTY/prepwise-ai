@@ -3,7 +3,7 @@ import {
   getGeminiClient,
   getSimulatedEvaluation,
   parseCleanJSON
-} from "./_utils.ts";
+} from "./_utils.js";
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {

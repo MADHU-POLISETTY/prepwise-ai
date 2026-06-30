@@ -139,7 +139,7 @@ const INITIAL_HISTORY: InterviewSessionRecord[] = [
   {
     id: "hist-1",
     category: "Technical",
-    role: "Senior Full-Stack Engineer",
+    role: "Senior DevOps Engineer",
     difficulty: "Advanced",
     company: "Stripe",
     score: 88,
@@ -2155,7 +2155,7 @@ export default function App() {
                             type="text"
                             value={mockRole}
                             onChange={(e) => setMockRole(e.target.value)}
-                            placeholder="e.g. Senior Backend Engineer"
+                            placeholder="e.g. AWS Cloud Engineer, DevOps Lead, SRE"
                             className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white uppercase font-sans focus:outline-none focus:ring-1 focus:ring-indigo-500"
                           />
                         </div>
@@ -2797,7 +2797,7 @@ export default function App() {
                         type="text"
                         value={targetJobRole}
                         onChange={(e) => setTargetJobRole(e.target.value)}
-                        placeholder="e.g. Senior Full-Stack Engineer, Junior Frontend React Developer..."
+                        placeholder="e.g. AWS Cloud Engineer, DevOps Engineer, SRE, Cloud Solutions Architect..."
                         className="w-full bg-zinc-900 border border-zinc-850 rounded-2xl p-3 text-xs text-white leading-relaxed focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         required
                       />

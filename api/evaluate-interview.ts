@@ -69,6 +69,30 @@ Please perform an in-depth, rigorous analysis of the answers. Provide:
     }
 
     const evaluationResult = parseCleanJSON(bodyText);
+
+    // Calculate factual mathematical average of individual question scores to ground the score
+    const individualScoresSum = answers.reduce((sum: number, ans: any) => {
+      const val = typeof ans.score === 'number' ? ans.score : parseInt(ans.score as any) || 0;
+      return sum + val;
+    }, 0);
+    const maxScorePossible = answers.length * 10;
+    const mathAvgScorePercent = maxScorePossible > 0 ? Math.round((individualScoresSum / maxScorePossible) * 100) : 0;
+
+    evaluationResult.score = mathAvgScorePercent;
+
+    // Align other metrics consistently with actual performance
+    const clampSubScore = (subScore: any) => {
+      if (mathAvgScorePercent === 0) return 0;
+      const parsedSub = typeof subScore === 'number' ? subScore : parseInt(subScore) || 50;
+      return Math.min(100, Math.max(0, Math.min(parsedSub, mathAvgScorePercent + 10)));
+    };
+
+    evaluationResult.communicationScore = clampSubScore(evaluationResult.communicationScore);
+    evaluationResult.technicalScore = clampSubScore(evaluationResult.technicalScore);
+    evaluationResult.confidenceScore = clampSubScore(evaluationResult.confidenceScore);
+    evaluationResult.problemSolvingScore = clampSubScore(evaluationResult.problemSolvingScore);
+    evaluationResult.clarityScore = clampSubScore(evaluationResult.clarityScore);
+
     return res.status(200).json(evaluationResult);
   } catch (err: any) {
     console.error("Gemini Interview Evaluation failed:", err);

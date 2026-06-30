@@ -26,6 +26,33 @@ export default async function handler(req: any, res: any) {
 
   const numQuestions = parseInt(rawNumQuestions as any, 10) || 5;
 
+  // Sanitize arrays to prevent null, non-string, or invalid item properties from crashing the server
+  const cleanPreviousQuestions: string[] = Array.isArray(previousQuestions)
+    ? previousQuestions
+        .map((q: any) => {
+          if (!q) return "";
+          if (typeof q === "string") return q.trim();
+          if (typeof q === "object") {
+            return (q.text || q.questionText || q.question || "").trim();
+          }
+          return "";
+        })
+        .filter((q: string) => q.length > 0)
+    : [];
+
+  const cleanPinnedQuestions: string[] = Array.isArray(pinnedQuestions)
+    ? pinnedQuestions
+        .map((q: any) => {
+          if (!q) return "";
+          if (typeof q === "string") return q.trim();
+          if (typeof q === "object") {
+            return (q.text || q.questionText || q.question || "").trim();
+          }
+          return "";
+        })
+        .filter((q: string) => q.length > 0)
+    : [];
+
   // Align domain and category
   const selectedDomain = domain || category || "Technical";
   const domainLower = selectedDomain.toLowerCase();
@@ -189,21 +216,47 @@ Generate questions strictly from this category and do not include or mix other u
   const client = getGeminiClient();
 
   const getBankQuestionsWithPinned = (): { id: number; text: string }[] => {
-    const list: string[] = [...pinnedQuestions];
+    const list: string[] = [...cleanPinnedQuestions];
     if (list.length < numQuestions) {
-      const remainingNeeded = numQuestions - list.length;
+      // First pass: select from mock pool excluding already seen previous questions
       const poolSimulated = getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, numQuestions + 10);
       for (const simQ of poolSimulated) {
         if (list.length >= numQuestions) break;
         const alreadyInList = list.some(item => item.toLowerCase().trim() === simQ.text.toLowerCase().trim());
-        const inPrevious = previousQuestions.some((pq: string) => pq.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+        const inPrevious = cleanPreviousQuestions.some((pq: string) => pq.toLowerCase().trim() === simQ.text.toLowerCase().trim());
         if (!alreadyInList && !inPrevious) {
           list.push(simQ.text);
         }
       }
+
+      // Second pass: if we need more questions, relax previous questions check but keep list items unique
+      if (list.length < numQuestions) {
+        for (const simQ of poolSimulated) {
+          if (list.length >= numQuestions) break;
+          const alreadyInList = list.some(item => item.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+          if (!alreadyInList) {
+            list.push(simQ.text);
+          }
+        }
+      }
     }
+    // If we still need more, append default safe ones but vary them to prevent duplicates
+    const fallbackTemplates = [
+      `As a ${role} focusing on ${selectedDomain}, how do you ensure scalability and quality under tight deadlines?`,
+      `Can you discuss a complex architectural challenge you faced in ${selectedDomain} and how you resolved it?`,
+      `How do you keep up with the latest advancements, library updates, and security patches in the ${selectedDomain} ecosystem?`,
+      `Explain your typical testing and debugging strategy when working with ${selectedDomain} applications.`,
+      `Describe how you manage performance profiling and memory optimizations in a high-throughput ${selectedDomain} environment.`
+    ];
+    let templateIdx = 0;
     while (list.length < numQuestions) {
-      list.push(`As a ${role} focusing on ${selectedDomain}, how do you ensure scalability and quality under tight deadlines?`);
+      const fallbackQ = fallbackTemplates[templateIdx % fallbackTemplates.length];
+      if (!list.includes(fallbackQ)) {
+        list.push(fallbackQ);
+      } else {
+        list.push(`${fallbackQ} (Focus: Part ${Math.floor(templateIdx / fallbackTemplates.length) + 1})`);
+      }
+      templateIdx++;
     }
     return list.slice(0, numQuestions).map((text, idx) => ({ id: idx + 1, text }));
   };
@@ -216,9 +269,9 @@ Generate questions strictly from this category and do not include or mix other u
   // 2. AI ONLY MODE
   if (questionMode === "ai") {
     try {
-      const aiCount = numQuestions - pinnedQuestions.length;
+      const aiCount = numQuestions - cleanPinnedQuestions.length;
       if (aiCount <= 0) {
-        return res.status(200).json(pinnedQuestions.slice(0, numQuestions).map((text: string, idx: number) => ({ id: idx + 1, text })));
+        return res.status(200).json(cleanPinnedQuestions.slice(0, numQuestions).map((text: string, idx: number) => ({ id: idx + 1, text })));
       }
 
       const seed = Math.random().toString(36).substring(7);
@@ -237,8 +290,8 @@ Constraints:
 - DO NOT MIX domains. A Java question must not talk about DevOps. An Aptitude question must not talk about AWS/System Design.
 - Use a diverse set of topics from the allowed list. Do not repeat the same concepts.
 - Random session seed: ${seed} (Use this to vary your selections and generate completely different questions from previous requests).
-${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following previous questions:\n${previousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
-${pinnedQuestions && pinnedQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following questions already selected in this session:\n${pinnedQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
+${cleanPreviousQuestions && cleanPreviousQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following previous questions:\n${cleanPreviousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
+${cleanPinnedQuestions && cleanPinnedQuestions.length > 0 ? `- CRITICAL: Do NOT generate or repeat any of the following questions already selected in this session:\n${cleanPinnedQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
 `;
 
       const response = await client.models.generateContent({
@@ -268,7 +321,7 @@ ${pinnedQuestions && pinnedQuestions.length > 0 ? `- CRITICAL: Do NOT generate o
 
       const aiQuestions = parseCleanJSON(bodyText);
       const combined = [
-        ...pinnedQuestions.map((text: string) => ({ text })),
+        ...cleanPinnedQuestions.map((text: string) => ({ text })),
         ...aiQuestions
       ];
 
@@ -289,13 +342,13 @@ ${pinnedQuestions && pinnedQuestions.length > 0 ? `- CRITICAL: Do NOT generate o
     const bankCount = Math.ceil(numQuestions / 2);
     const aiCount = numQuestions - bankCount;
 
-    const curatedList: string[] = [...pinnedQuestions];
+    const curatedList: string[] = [...cleanPinnedQuestions];
     if (curatedList.length < bankCount) {
       const poolSimulated = getSimulatedQuestions(selectedDomain, role, difficulty, company, customTopic, bankCount + 10);
       for (const simQ of poolSimulated) {
         if (curatedList.length >= bankCount) break;
         const alreadyInList = curatedList.some(item => item.toLowerCase().trim() === simQ.text.toLowerCase().trim());
-        const inPrevious = previousQuestions.some((pq: string) => pq.toLowerCase().trim() === simQ.text.toLowerCase().trim());
+        const inPrevious = cleanPreviousQuestions.some((pq: string) => pq.toLowerCase().trim() === simQ.text.toLowerCase().trim());
         if (!alreadyInList && !inPrevious) {
           curatedList.push(simQ.text);
         }
@@ -326,7 +379,7 @@ Constraints:
 - Ensure they complement and build upon the curated questions above without repeating topics.
 - Tailor strictly to the ${difficulty} difficulty level for a ${role} position.
 - Random session seed: ${seed}
-${previousQuestions && previousQuestions.length > 0 ? `- CRITICAL: Do NOT repeat any of the following previous questions:\n${previousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
+${cleanPreviousQuestions && cleanPreviousQuestions.length > 0 ? `- CRITICAL: Do NOT repeat any of the following previous questions:\n${cleanPreviousQuestions.map((q: string) => `- ${q}`).join('\n')}` : ""}
 `;
 
     const response = await client.models.generateContent({

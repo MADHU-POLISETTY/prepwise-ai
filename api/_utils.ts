@@ -484,51 +484,21 @@ export function getSimulatedSingleAnswerEvaluation(question: string, answer: str
 }
 
 export function getSimulatedEvaluation(category: string, role: string, answers: any[]) {
-  let scoreBase = 10;
-  let totalLength = 0;
-  let validAnswersCount = 0;
+  // Calculate factual mathematical average of individual question scores
+  const individualScoresSum = answers.reduce((sum: number, ans: any) => {
+    const val = typeof ans.score === 'number' ? ans.score : parseInt(ans.score as any) || 0;
+    return sum + val;
+  }, 0);
+  const maxScorePossible = answers.length * 10;
+  const mathAvgScorePercent = maxScorePossible > 0 ? Math.round((individualScoresSum / maxScorePossible) * 100) : 0;
 
-  answers.forEach(a => {
-    const text = (a.answerText || "").trim();
-    if (text.length > 0) {
-      totalLength += text.length;
-      
-      const isRepeated = /(.)\1{3,}/.test(text);
-      const isGibberish = text.length < 10 && (
-        /asdf/i.test(text) || 
-        /test/i.test(text) || 
-        /none/i.test(text) || 
-        /idk/i.test(text) || 
-        /don't know/i.test(text) ||
-        /skip/i.test(text) ||
-        /hello/i.test(text)
-      );
-
-      if (!isRepeated && !isGibberish && text.length >= 10) {
-        validAnswersCount++;
-        if (text.length > 150) {
-          scoreBase += 16;
-        } else if (text.length > 60) {
-          scoreBase += 12;
-        } else {
-          scoreBase += 6;
-        }
-      }
-    }
-  });
-
-  if (answers.length === 0) {
-    scoreBase = 0;
-  } else if (validAnswersCount === 0) {
-    scoreBase = Math.min(15, scoreBase);
-  }
-
-  const rawScore = Math.min(96, Math.max(5, scoreBase));
-  const communication = Math.round(rawScore + (Math.random() * 4 - 2));
-  const technical = Math.round(rawScore + (Math.random() * 6 - 3));
-  const confidence = Math.round(rawScore + (Math.random() * 4 - 2));
-  const problemSolving = Math.round(rawScore + (Math.random() * 6 - 2));
-  const clarity = Math.round(rawScore + (Math.random() * 4 - 2));
+  // Calculate scores with subtle randomness but strictly bounded by quality
+  const rawScore = mathAvgScorePercent;
+  const communication = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  const technical = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 6 - 3))));
+  const confidence = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  const problemSolving = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 6 - 2))));
+  const clarity = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
   
   const finalScore = Math.round((communication + technical + confidence + problemSolving + clarity) / 5);
 
@@ -806,18 +776,54 @@ export function getSimulatedQuestions(categoryOrDomain: string, role: string, di
   
   let pool = getQuestionBankPool(categoryOrDomain, role, difficulty, company, customTopic);
   
+  // Shuffle pool to ensure variety and uniqueness
   pool = [...pool].sort(() => Math.random() - 0.5);
   
+  // Take the required number of questions, up to pool size
   const selectedQuestions = pool.slice(0, numQuestions);
   
+  // If pool didn't have enough, fill with domain-safe distinct questions
+  const defaultAptitude = [
+    `Solve this problem: If 3 books cost $15, how much do 6 books cost?\nA) $20\nB) $25\nC) $30\nD) $35`,
+    `A train running at the speed of 60 km/hr crosses a pole in 9 seconds. What is the length of the train?\nA) 120 metres\nB) 150 metres\nC) 324 metres\nD) 180 metres`,
+    `Find the odd one out: 3, 5, 11, 14, 17, 21\nA) 14\nB) 17\nC) 21\nD) 11`,
+    `A sum of money at simple interest amounts to $815 in 3 years and to $854 in 4 years. The sum is:\nA) $650\nB) $690\nC) $698\nD) $700`,
+    `If a person walks at 14 km/hr instead of 10 km/hr, he would have walked 20 km more. The actual distance travelled by him is:\nA) 50 km\nB) 56 km\nC) 70 km\nD) 80 km`
+  ];
+
+  const defaultHR = [
+    `Tell me about a situation where you had to work with a teammate whose working style was different from yours.`,
+    `Describe a time when you faced a major obstacle at work and how you overcame it.`,
+    `Why do you want to join our team, and how does your career vision align with this role?`,
+    `Can you describe a time when you had to explain a complex technical concept to a non-technical stakeholder?`,
+    `Tell me about a time when you made a mistake on a project. How did you handle it and what did you learn?`
+  ];
+
+  const defaultTechnical = [
+    `As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`,
+    `What are your preferred strategies for debugging complex asynchronous failures or memory leaks in a production environment?`,
+    `Describe a system architecture design pattern you frequently use when building scalable solutions as a ${role}.`,
+    `How do you approach writing clean, maintainable, and well-tested code for enterprise projects?`,
+    `Can you walk through your process for performing comprehensive code reviews within your engineering team?`
+  ];
+
+  let fallbackIdx = 0;
   while (selectedQuestions.length < numQuestions) {
+    let nextQ = "";
     if (searchStr.includes("aptitude")) {
-      selectedQuestions.push(`Solve this problem: If 3 books cost $15, how much do 6 books cost?\nA) $20\nB) $25\nC) $30\nD) $35`);
+      nextQ = defaultAptitude[fallbackIdx % defaultAptitude.length];
     } else if (searchStr.includes("hr") || searchStr.includes("behavioral")) {
-      selectedQuestions.push(`Tell me about a situation where you had to work with a teammate whose working style was different from yours.`);
+      nextQ = defaultHR[fallbackIdx % defaultHR.length];
     } else {
-      selectedQuestions.push(`As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`);
+      nextQ = defaultTechnical[fallbackIdx % defaultTechnical.length];
     }
+
+    if (!selectedQuestions.includes(nextQ)) {
+      selectedQuestions.push(nextQ);
+    } else {
+      selectedQuestions.push(`${nextQ} (Vary: Option ${Math.floor(fallbackIdx / 5) + 1})`);
+    }
+    fallbackIdx++;
   }
   
   return selectedQuestions.map((text, index) => ({

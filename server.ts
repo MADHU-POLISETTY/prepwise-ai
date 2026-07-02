@@ -2,7 +2,6 @@ process.noDeprecation = true;
 import express from "express";
 import path from "path";
 import dotenv from "dotenv";
-import { createServer as createViteServer } from "vite";
 
 // Import Vercel API handlers directly so there is absolutely NO discrepancy or code duplication!
 import healthHandler from "./api/_handlers/health.js";
@@ -37,7 +36,8 @@ app.all("/api/ask-ms", askMsHandler);
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    const { createServer } = await import("vite");
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: "spa",
     });

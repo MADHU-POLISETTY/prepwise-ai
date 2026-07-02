@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { 
   Cpu, 
   Copy, 
@@ -213,7 +214,12 @@ jobs:
   return (
     <div className="space-y-6 pb-24 animate-fade-in text-left">
       {/* Top Header Identity */}
-      <div className="flex justify-between items-center bg-indigo-950/15 p-4 rounded-3xl border border-indigo-900/20">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="flex justify-between items-center bg-indigo-950/15 p-4 rounded-3xl border border-indigo-900/20"
+      >
         <div className="space-y-0.5">
           <span className="text-[9px] font-mono text-indigo-400 font-extrabold uppercase tracking-widest block">Cloud Infrastructure</span>
           <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -229,10 +235,15 @@ jobs:
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back</span>
         </button>
-      </div>
+      </motion.div>
 
       {/* Primary Sub-Tabs Navigation */}
-      <div className="flex bg-zinc-950/80 p-1 rounded-2xl border border-zinc-850/60 shrink-0">
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1, ease: "easeOut" }}
+        className="flex bg-zinc-950/80 p-1 rounded-2xl border border-zinc-850/60 shrink-0"
+      >
         <button
           onClick={() => setActiveSubTab('aws')}
           className={`flex-1 py-2 text-center text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center space-x-1.5 ${
@@ -268,7 +279,7 @@ jobs:
           <GitBranch className="w-3.5 h-3.5" />
           <span>CI/CD Pipelines</span>
         </button>
-      </div>
+      </motion.div>
 
       {/* Tab Area Content */}
       <div className="space-y-4">
@@ -277,7 +288,12 @@ jobs:
         {activeSubTab === 'aws' && (
           <div className="space-y-4">
             
-            <div className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
+              className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4"
+            >
               <div className="flex items-center space-x-2 pb-1 border-b border-indigo-950/40">
                 <Cloud className="w-5 h-5 text-indigo-400 animate-pulse" />
                 <h3 className="text-sm font-bold text-white">AWS Deploy Blueprint (Project Portfolio Standard)</h3>
@@ -289,7 +305,12 @@ jobs:
 
               {/* AWS Deploy Options Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                <div className="bg-black/20 p-3.5 rounded-2xl border border-zinc-900 space-y-2">
+                <motion.div 
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.35, delay: 0.25, ease: "easeOut" }}
+                  className="bg-black/20 p-3.5 rounded-2xl border border-zinc-900 space-y-2"
+                >
                   <div className="flex items-center space-x-2 text-indigo-300">
                     <Zap className="w-4 h-4 text-amber-400" />
                     <span className="text-xs font-bold">Option A: AWS App Runner (Easiest)</span>
@@ -297,9 +318,14 @@ jobs:
                   <p className="text-[10px] text-zinc-400 leading-relaxed">
                     Provides a fully managed container service. Directly pulls your source from GitHub or Docker ECR, configures port 3000, and deploys with automatic HTTPS and certificate management. Perfect for quick reviews!
                   </p>
-                </div>
+                </motion.div>
 
-                <div className="bg-black/20 p-3.5 rounded-2xl border border-zinc-900 space-y-2">
+                <motion.div 
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.35, delay: 0.25, ease: "easeOut" }}
+                  className="bg-black/20 p-3.5 rounded-2xl border border-zinc-900 space-y-2"
+                >
                   <div className="flex items-center space-x-2 text-emerald-300">
                     <Server className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs font-bold">Option B: AWS ECS Fargate (Production)</span>
@@ -307,7 +333,7 @@ jobs:
                   <p className="text-[10px] text-zinc-400 leading-relaxed">
                     True Enterprise Grade deployment. Orchestrates the app in container tasks on AWS Elastic Container Service (ECS) with serverless Fargate nodes, shielded behind an Application Load Balancer.
                   </p>
-                </div>
+                </motion.div>
               </div>
 
               {/* Step by Step CLI checklist */}
@@ -315,14 +341,24 @@ jobs:
                 <h4 className="text-xs font-mono text-indigo-400 uppercase tracking-widest font-black">Step-by-Step AWS Rollout Commands</h4>
                 
                 <div className="space-y-2.5">
-                  <div className="space-y-1">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3, ease: "easeOut" }}
+                    className="space-y-1"
+                  >
                     <span className="text-[10px] font-mono text-zinc-400 font-bold block">1. Authenticate local AWS Command Line Interface (CLI):</span>
                     <pre className="bg-black text-[10px] font-mono text-zinc-300 p-2.5 rounded-xl border border-zinc-900 overflow-x-auto select-all">
 aws configure
 # Enter AWS Access Key, AWS Secret Access Key, and Default region (e.g. us-east-1)</pre>
-                  </div>
+                  </motion.div>
 
-                  <div className="space-y-1">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.35, ease: "easeOut" }}
+                    className="space-y-1"
+                  >
                     <span className="text-[10px] font-mono text-zinc-400 font-bold block">2. Create and Login to private AWS ECR Repository:</span>
                     <pre className="bg-black text-[10px] font-mono text-zinc-300 p-2.5 rounded-xl border border-zinc-900 overflow-x-auto select-all">
 # Create Registry repo
@@ -330,26 +366,36 @@ aws ecr create-repository --repository-name prepwise-ai --region us-east-1
 
 # Authenticate local Docker daemon to ECR
 aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com</pre>
-                  </div>
+                  </motion.div>
 
-                  <div className="space-y-1">
+                  <motion.div 
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.4, ease: "easeOut" }}
+                    className="space-y-1"
+                  >
                     <span className="text-[10px] font-mono text-zinc-400 font-bold block">3. Tag & Push Container:</span>
                     <pre className="bg-black text-[10px] font-mono text-zinc-300 p-2.5 rounded-xl border border-zinc-900 overflow-x-auto select-all">
 docker tag prepwise-ai:latest 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest
 docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre>
-                  </div>
+                  </motion.div>
                 </div>
               </div>
 
-              <div className="bg-indigo-950/20 p-3 rounded-2xl border border-indigo-500/10 flex items-start space-x-2.5 text-[10px] text-zinc-400 leading-relaxed">
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.45, ease: "easeOut" }}
+                className="bg-indigo-950/20 p-3 rounded-2xl border border-indigo-500/10 flex items-start space-x-2.5 text-[10px] text-zinc-400 leading-relaxed"
+              >
                 <ShieldCheck className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold text-indigo-300 block mb-0.5">Architectural Suggestion: AWS Systems Manager Parameter Store</span>
                   Store sensitive credentials like <code className="text-white">GEMINI_API_KEY</code> and Firebase configurations inside AWS Parameter Store or Secrets Manager. Inject them dynamically at boot to avoid hardcoding secrets in codebase repository commits!
                 </div>
-              </div>
+              </motion.div>
 
-            </div>
+            </motion.div>
 
           </div>
         )}
@@ -358,7 +404,12 @@ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre
         {activeSubTab === 'docker' && (
           <div className="space-y-4">
             
-            <div className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
+              className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4"
+            >
               <div className="flex items-center justify-between pb-1 border-b border-indigo-950/40">
                 <div className="flex items-center space-x-2">
                   <Layers className="w-5 h-5 text-indigo-400 animate-pulse" />
@@ -382,9 +433,14 @@ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre
                   {dockerfileContent}
                 </pre>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.25, ease: "easeOut" }}
+              className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4"
+            >
               <div className="flex items-center justify-between pb-1 border-b border-indigo-950/40">
                 <div className="flex items-center space-x-2">
                   <Database className="w-5 h-5 text-indigo-400" />
@@ -408,7 +464,7 @@ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre
                   {composeContent}
                 </pre>
               </div>
-            </div>
+            </motion.div>
 
           </div>
         )}
@@ -417,7 +473,12 @@ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre
         {activeSubTab === 'cicd' && (
           <div className="space-y-4">
             
-            <div className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.15, ease: "easeOut" }}
+              className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4"
+            >
               <div className="flex items-center justify-between pb-1 border-b border-indigo-950/40">
                 <div className="flex items-center space-x-2">
                   <GitBranch className="w-5 h-5 text-indigo-400 animate-pulse" />
@@ -441,9 +502,14 @@ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre
                   {githubActionsContent}
                 </pre>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.25, ease: "easeOut" }}
+              className="bg-gradient-to-br from-[#101423] to-[#04060b] border border-indigo-900/20 p-4 rounded-3xl space-y-4"
+            >
               <div className="flex items-center justify-between pb-1 border-b border-indigo-950/40">
                 <div className="flex items-center space-x-2">
                   <FileCode className="w-5 h-5 text-indigo-400" />
@@ -467,7 +533,7 @@ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/prepwise-ai:latest</pre
                   {jenkinsContent}
                 </pre>
               </div>
-            </div>
+            </motion.div>
 
           </div>
         )}

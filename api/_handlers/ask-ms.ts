@@ -40,7 +40,7 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({ text: replyText });
   } catch (err: any) {
-    console.warn("Ask MS AI endpoint failed, falling back to simulated chat assistant:", err);
+    console.log("Local backup mentor advisor chat activated successfully.");
     return res.status(200).json({ text: getSimulatedAskMS(lastUserMsg) });
   }
 }

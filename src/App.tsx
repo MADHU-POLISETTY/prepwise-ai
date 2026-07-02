@@ -502,17 +502,33 @@ function generateFallbackIdealAnswer(question: string): string {
   // SMART DYNAMIC FALLBACK GENERATOR FOR CUSTOM/UNKNOWN QUESTIONS
   // -------------------------------------------------------------
   
+  // Clean question prefix to extract the direct subject
+  let subject = question.trim().replace(/[?.]+/g, "").trim();
+  const prefixes = [
+    /^(explain|describe|what is|what are|how does|how do|can you explain|tell me about|analyze|evaluate|discuss|understand|compare)\s+(the\s+)?/i,
+    /^(what\s+is\s+|what\s+are\s+|how\s+does\s+|how\s+to\s+|why\s+do\s+|explain\s+|describe\s+)/i
+  ];
+  for (const regex of prefixes) {
+    subject = subject.replace(regex, "");
+  }
+  subject = subject.trim();
+  if (subject.length > 0) {
+    subject = subject.charAt(0).toUpperCase() + subject.slice(1);
+  } else {
+    subject = "this core technology";
+  }
+
   // Extract key subjects from the question
   const cleanQ = question.replace(/[?.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
   const words = cleanQ.split(/\s+/);
   const stopWords = new Set([
-    "what", "is", "are", "explain", "how", "does", "the", "and", "or", "in", "of", "to", "for", "with", "on", "a", "an", "when", "would", "you", "choose", "over", "difference", "differences", "between", "describe", "use", "using", "why", "it", "its", "at", "about", "your", "my", "our", "their", "where", "which"
+    "what", "is", "are", "explain", "how", "does", "the", "and", "or", "in", "of", "to", "for", "with", "on", "a", "an", "when", "would", "you", "choose", "over", "difference", "differences", "between", "describe", "use", "using", "why", "it", "its", "at", "about", "your", "my", "our", "their", "where", "which", "hierarchy", "deployment", "choices", "instances"
   ]);
   
   const extracted: string[] = [];
   for (const word of words) {
     const lower = word.toLowerCase();
-    if (lower.length > 3 && !stopWords.has(lower)) {
+    if (lower.length > 3 && !stopWords.has(lower) && !subject.toLowerCase().includes(lower)) {
       const capitalized = word.charAt(0).toUpperCase() + word.slice(1);
       if (!extracted.includes(capitalized)) {
         extracted.push(capitalized);
@@ -529,16 +545,60 @@ function generateFallbackIdealAnswer(question: string): string {
     return "To answer this behavioral question, use the simple **STAR** method:\n1. **Situation**: Describe the background or problem you faced.\n2. **Task**: Explain what your goal was.\n3. **Action**: Tell exactly what steps you took to solve it.\n4. **Result**: Share the successful outcome or what you learned.";
   }
 
-  const s1 = extracted[0] || "this core technology";
-  const s2 = extracted[1] || "industry best practices";
-  const s3 = extracted[2] || "architectural patterns";
+  // Also try to get general words that are inside the subject but are meaningful keys
+  const subjectWords = subject.split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
+  const s1 = subjectWords[0] || extracted[0] || "Architecture";
+  const s2 = subjectWords[1] || extracted[1] || "Best Practices";
 
-  return `To understand **${s1}**, here is a simple breakdown:
-- **Core Concept**: It focuses on key benefits, simple setup, and easy workflows.
-- **Why it matters**: Using **${s2}** alongside **${s3}** keeps things clean, fast, and organized.
-- **Best Practices**: Start with a simple setup, test your code for errors, and monitor it to make sure it runs smoothly.
+  // Detect category to make explanation highly specialized
+  let categoryName = "Software Engineering";
+  let coreConcept = `Explaining the inner workings of **${subject}** and how it integrates into the broader development lifecycle.`;
+  let keyArchitecture = `Leveraging **${s1}** alongside **${s2}** forms a resilient foundation for reliable, scalable software designs.`;
+  let bestPractices = `Write fully tested code, keep interfaces decoupled, modularize your components, and document configurations.`;
 
-By following these simple steps, beginners can easily build and manage reliable programs!`;
+  if (q.includes("azure") || q.includes("aws") || q.includes("gcp") || q.includes("cloud") || q.includes("tenant") || q.includes("iaas") || q.includes("paas") || q.includes("saas")) {
+    categoryName = "Cloud Engineering";
+    coreConcept = `Explaining how **${subject}** handles computing resource virtualization, tenant isolation, and elastic on-demand scaling.`;
+    keyArchitecture = `Integrating cloud building blocks like **${s1}** and **${s2}** enables highly-available architectures, failover routing, and global reach.`;
+    bestPractices = `Enforce proper IAM access rules, protect data both at-rest and in-transit, and configure resource monitoring and budgets.`;
+  } else if (q.includes("kubernetes") || q.includes("docker") || q.includes("ci/cd") || q.includes("pipeline") || q.includes("devops") || q.includes("terraform") || q.includes("ansible") || q.includes("jenkins")) {
+    categoryName = "DevOps & Infrastructure";
+    coreConcept = `Streamlining delivery cycles and keeping operational environments completely stable through automated workflows and deployments.`;
+    keyArchitecture = `Orchestrating **${s1}** deployments with **${s2}** automation ensures deterministic, repeatable environments and rapid release velocities.`;
+    bestPractices = `Define infrastructure as code, run automated tests as mandatory build checks, and secure variables using specialized secrets managers.`;
+  } else if (q.includes("react") || q.includes("vue") || q.includes("angular") || q.includes("javascript") || q.includes("typescript") || q.includes("frontend") || q.includes("state management") || q.includes("css") || q.includes("dom")) {
+    categoryName = "Frontend Architecture";
+    coreConcept = `Designing highly interactive, responsive, and performance-optimized client-side layouts that process user inputs cleanly.`;
+    keyArchitecture = `Managing the visual document layout with **${s1}** while binding states through **${s2}** delivers fluid, delay-free rendering.`;
+    bestPractices = `Break code into reusable components, optimize image assets, split large bundles to improve page load speed, and adhere to web accessibility standard rules.`;
+  } else if (q.includes("backend") || q.includes("express") || q.includes("node") || q.includes("django") || q.includes("fastapi") || q.includes("spring") || q.includes("api") || q.includes("rest") || q.includes("graphql") || q.includes("grpc")) {
+    categoryName = "Backend Systems";
+    coreConcept = `Constructing high-performance server layers that process domain calculations, enforce data logic, and handle service routing.`;
+    keyArchitecture = `Building resilient endpoints using **${s1}** structures alongside **${s2}** communications guarantees lower latency and clean error paths.`;
+    bestPractices = `Apply robust input schemas validation, decouple layers cleanly, set up circuit breakers for third-party calls, and implement structured server logging.`;
+  } else if (q.includes("database") || q.includes("sql") || q.includes("nosql") || q.includes("postgres") || q.includes("mysql") || q.includes("mongodb") || q.includes("redis") || q.includes("caching")) {
+    categoryName = "Database & Data Storage";
+    coreConcept = `Establishing durable, ACID-compliant persistency structures that optimize index scans, handle concurrent connections, and guarantee integrity.`;
+    keyArchitecture = `Structuring data models around **${s1}** tables or documents while caching keys inside **${s2}** reduces load on primary query layers.`;
+    bestPractices = `Create sensible indexes, avoid heavy nested loops, use connection pooling to save overheads, and run routine database schema migrations safely.`;
+  } else if (q.includes("machine learning") || q.includes("ml") || q.includes("deep learning") || q.includes("neural") || q.includes("cnn") || q.includes("rnn") || q.includes("nlp") || q.includes("llm") || q.includes("transformer") || q.includes("gradient descent")) {
+    categoryName = "AI & Machine Learning";
+    coreConcept = `Fitting predictive mathematical algorithms or layered neural networks to high-dimensional datasets to generalize on unseen patterns.`;
+    keyArchitecture = `Processing mathematical layers through **${s1}** optimization algorithms while evaluating metrics using **${s2}** guides steady model convergence.`;
+    bestPractices = `Preprocess data carefully, apply regularization or dropout filters to halt overfitting early, and inspect test validation splits.`;
+  } else if (q.includes("security") || q.includes("auth") || q.includes("oauth") || q.includes("jwt") || q.includes("encryption") || q.includes("cryptography")) {
+    categoryName = "Security & Access Control";
+    coreConcept = `Securing services by establishing explicit trust boundaries, cryptographically signing identities, and auditing authorization flows.`;
+    keyArchitecture = `Authorizing requests using **${s1}** credentials and validating scopes through **${s2}** safeguards critical business resources.`;
+    bestPractices = `Use trusted, industry-vetted libraries instead of writing custom cryptographic algorithms, secure secrets carefully, and enforce the principle of least privilege.`;
+  }
+
+  return `To understand **${subject}**, here is a simple breakdown:
+- **Core Concept (${categoryName})**: ${coreConcept}
+- **Why it matters**: Using **${s1}** alongside **${s2}** keeps things clean, fast, and organized. ${keyArchitecture}
+- **Best Practices**: ${bestPractices}
+
+By following these simple steps, developers can build, scale, and maintain high-quality production applications!`;
 }
 
 export default function App() {

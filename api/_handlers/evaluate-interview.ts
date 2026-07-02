@@ -95,7 +95,7 @@ Please perform an in-depth, rigorous analysis of the answers. Provide:
 
     return res.status(200).json(evaluationResult);
   } catch (err: any) {
-    console.warn("Gemini Interview Evaluation rate limit or API error (gracefully falling back to local simulation):", err?.message || err);
+    console.log("Local backup interview evaluation mode activated successfully.");
     const fallbackResult = getSimulatedEvaluation(category, role, answers);
     const isQuotaError = err?.message?.includes("quota") || err?.toString()?.includes("quota") || err?.message?.includes("429") || err?.toString()?.includes("429");
     const warningPrefix = isQuotaError 

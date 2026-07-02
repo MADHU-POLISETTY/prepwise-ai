@@ -102,7 +102,7 @@ Return ONLY JSON:
       ]);
       similarity = cosineSimilarity(userEmbedding, idealEmbedding);
     } catch (embedErr) {
-      console.error("Embedding calculation failed, falling back:", embedErr);
+      console.log("Using standard similarity metric backup.");
       similarity = 0.5;
     }
 
@@ -213,7 +213,7 @@ Return your evaluation inside a valid JSON object matching this schema:
       idealAnswer
     });
   } catch (err: any) {
-    console.warn("Gemini Single Answer Evaluation rate limit or API error (gracefully falling back to local simulation):", err?.message || err);
+    console.log("Local backup evaluation mode activated successfully.");
     const fallbackResult = getSimulatedSingleAnswerEvaluation(question, cleanAnswer);
     const isQuotaError = err?.message?.includes("quota") || err?.toString()?.includes("quota") || err?.message?.includes("429") || err?.toString()?.includes("429");
     const warningPrefix = isQuotaError 

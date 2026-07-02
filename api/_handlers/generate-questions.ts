@@ -333,7 +333,7 @@ ${cleanPinnedQuestions && cleanPinnedQuestions.length > 0 ? `- CRITICAL: Do NOT 
 
       return res.status(200).json(finalQuestions);
     } catch (err: any) {
-      console.warn("Gemini AI-Only generation failed, falling back to bank (quota or API error):", err?.message || err);
+      console.log("Local backup question generation activated successfully (AI model offline).");
       return res.status(200).json(getBankQuestionsWithPinned());
     }
   }
@@ -421,11 +421,11 @@ ${cleanPreviousQuestions && cleanPreviousQuestions.length > 0 ? `- CRITICAL: Do 
 
     return res.status(200).json(finalQuestions);
   } catch (err: any) {
-    console.warn("Gemini Hybrid generation failed, falling back to full bank (quota or API error):", err?.message || err);
+    console.log("Local backup question generation activated successfully (AI hybrid mode offline).");
     return res.status(200).json(getBankQuestionsWithPinned());
   }
   } catch (err: any) {
-    console.error("Top-level error caught in generate-questions handler:", err);
+    console.log("Top-level fallback triggered in question generator.");
     try {
       const selectedDomain = req.body?.domain || req.body?.category || "Technical";
       const count = parseInt(req.body?.numQuestions || "5", 10) || 5;

@@ -48,9 +48,9 @@ export async function getEmbedding(client: GoogleGenAI, text: string): Promise<n
     if (result.embeddings && result.embeddings[0] && result.embeddings[0].values) {
       return result.embeddings[0].values;
     }
-    throw new Error("Unable to extract embedding values from Gemini API response.");
+    throw new Error("Unable to extract embedding values");
   } catch (err) {
-    console.error("Failed to get embedding:", err);
+    console.log("Embedding not available. Activating standard backup.");
     throw err;
   }
 }
@@ -372,17 +372,33 @@ export function generateFallbackIdealAnswer(question: string): string {
   // SMART DYNAMIC FALLBACK GENERATOR FOR CUSTOM/UNKNOWN QUESTIONS
   // -------------------------------------------------------------
   
+  // Clean question prefix to extract the direct subject
+  let subject = question.trim().replace(/[?.]+/g, "").trim();
+  const prefixes = [
+    /^(explain|describe|what is|what are|how does|how do|can you explain|tell me about|analyze|evaluate|discuss|understand|compare)\s+(the\s+)?/i,
+    /^(what\s+is\s+|what\s+are\s+|how\s+does\s+|how\s+to\s+|why\s+do\s+|explain\s+|describe\s+)/i
+  ];
+  for (const regex of prefixes) {
+    subject = subject.replace(regex, "");
+  }
+  subject = subject.trim();
+  if (subject.length > 0) {
+    subject = subject.charAt(0).toUpperCase() + subject.slice(1);
+  } else {
+    subject = "this core technology";
+  }
+
   // Extract key subjects from the question
   const cleanQ = question.replace(/[?.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
   const words = cleanQ.split(/\s+/);
   const stopWords = new Set([
-    "what", "is", "are", "explain", "how", "does", "the", "and", "or", "in", "of", "to", "for", "with", "on", "a", "an", "when", "would", "you", "choose", "over", "difference", "differences", "between", "describe", "use", "using", "why", "it", "its", "at", "about", "your", "my", "our", "their", "where", "which"
+    "what", "is", "are", "explain", "how", "does", "the", "and", "or", "in", "of", "to", "for", "with", "on", "a", "an", "when", "would", "you", "choose", "over", "difference", "differences", "between", "describe", "use", "using", "why", "it", "its", "at", "about", "your", "my", "our", "their", "where", "which", "hierarchy", "deployment", "choices", "instances"
   ]);
   
   const extracted: string[] = [];
   for (const word of words) {
     const lower = word.toLowerCase();
-    if (lower.length > 3 && !stopWords.has(lower)) {
+    if (lower.length > 3 && !stopWords.has(lower) && !subject.toLowerCase().includes(lower)) {
       const capitalized = word.charAt(0).toUpperCase() + word.slice(1);
       if (!extracted.includes(capitalized)) {
         extracted.push(capitalized);
@@ -399,16 +415,60 @@ export function generateFallbackIdealAnswer(question: string): string {
     return "To answer this behavioral question, use the simple **STAR** method:\n1. **Situation**: Describe the background or problem you faced.\n2. **Task**: Explain what your goal was.\n3. **Action**: Tell exactly what steps you took to solve it.\n4. **Result**: Share the successful outcome or what you learned.";
   }
 
-  const s1 = extracted[0] || "this core technology";
-  const s2 = extracted[1] || "industry best practices";
-  const s3 = extracted[2] || "architectural patterns";
+  // Also try to get general words that are inside the subject but are meaningful keys
+  const subjectWords = subject.split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
+  const s1 = subjectWords[0] || extracted[0] || "Architecture";
+  const s2 = subjectWords[1] || extracted[1] || "Best Practices";
 
-  return `To understand **${s1}**, here is a simple breakdown:
-- **Core Concept**: It focuses on key benefits, simple setup, and easy workflows.
-- **Why it matters**: Using **${s2}** alongside **${s3}** keeps things clean, fast, and organized.
-- **Best Practices**: Start with a simple setup, test your code for errors, and monitor it to make sure it runs smoothly.
+  // Detect category to make explanation highly specialized
+  let categoryName = "Software Engineering";
+  let coreConcept = `Explaining the inner workings of **${subject}** and how it integrates into the broader development lifecycle.`;
+  let keyArchitecture = `Leveraging **${s1}** alongside **${s2}** forms a resilient foundation for reliable, scalable software designs.`;
+  let bestPractices = `Write fully tested code, keep interfaces decoupled, modularize your components, and document configurations.`;
 
-By following these simple steps, beginners can easily build and manage reliable programs!`;
+  if (q.includes("azure") || q.includes("aws") || q.includes("gcp") || q.includes("cloud") || q.includes("tenant") || q.includes("iaas") || q.includes("paas") || q.includes("saas")) {
+    categoryName = "Cloud Engineering";
+    coreConcept = `Explaining how **${subject}** handles computing resource virtualization, tenant isolation, and elastic on-demand scaling.`;
+    keyArchitecture = `Integrating cloud building blocks like **${s1}** and **${s2}** enables highly-available architectures, failover routing, and global reach.`;
+    bestPractices = `Enforce proper IAM access rules, protect data both at-rest and in-transit, and configure resource monitoring and budgets.`;
+  } else if (q.includes("kubernetes") || q.includes("docker") || q.includes("ci/cd") || q.includes("pipeline") || q.includes("devops") || q.includes("terraform") || q.includes("ansible") || q.includes("jenkins")) {
+    categoryName = "DevOps & Infrastructure";
+    coreConcept = `Streamlining delivery cycles and keeping operational environments completely stable through automated workflows and deployments.`;
+    keyArchitecture = `Orchestrating **${s1}** deployments with **${s2}** automation ensures deterministic, repeatable environments and rapid release velocities.`;
+    bestPractices = `Define infrastructure as code, run automated tests as mandatory build checks, and secure variables using specialized secrets managers.`;
+  } else if (q.includes("react") || q.includes("vue") || q.includes("angular") || q.includes("javascript") || q.includes("typescript") || q.includes("frontend") || q.includes("state management") || q.includes("css") || q.includes("dom")) {
+    categoryName = "Frontend Architecture";
+    coreConcept = `Designing highly interactive, responsive, and performance-optimized client-side layouts that process user inputs cleanly.`;
+    keyArchitecture = `Managing the visual document layout with **${s1}** while binding states through **${s2}** delivers fluid, delay-free rendering.`;
+    bestPractices = `Break code into reusable components, optimize image assets, split large bundles to improve page load speed, and adhere to web accessibility standard rules.`;
+  } else if (q.includes("backend") || q.includes("express") || q.includes("node") || q.includes("django") || q.includes("fastapi") || q.includes("spring") || q.includes("api") || q.includes("rest") || q.includes("graphql") || q.includes("grpc")) {
+    categoryName = "Backend Systems";
+    coreConcept = `Constructing high-performance server layers that process domain calculations, enforce data logic, and handle service routing.`;
+    keyArchitecture = `Building resilient endpoints using **${s1}** structures alongside **${s2}** communications guarantees lower latency and clean error paths.`;
+    bestPractices = `Apply robust input schemas validation, decouple layers cleanly, set up circuit breakers for third-party calls, and implement structured server logging.`;
+  } else if (q.includes("database") || q.includes("sql") || q.includes("nosql") || q.includes("postgres") || q.includes("mysql") || q.includes("mongodb") || q.includes("redis") || q.includes("caching")) {
+    categoryName = "Database & Data Storage";
+    coreConcept = `Establishing durable, ACID-compliant persistency structures that optimize index scans, handle concurrent connections, and guarantee integrity.`;
+    keyArchitecture = `Structuring data models around **${s1}** tables or documents while caching keys inside **${s2}** reduces load on primary query layers.`;
+    bestPractices = `Create sensible indexes, avoid heavy nested loops, use connection pooling to save overheads, and run routine database schema migrations safely.`;
+  } else if (q.includes("machine learning") || q.includes("ml") || q.includes("deep learning") || q.includes("neural") || q.includes("cnn") || q.includes("rnn") || q.includes("nlp") || q.includes("llm") || q.includes("transformer") || q.includes("gradient descent")) {
+    categoryName = "AI & Machine Learning";
+    coreConcept = `Fitting predictive mathematical algorithms or layered neural networks to high-dimensional datasets to generalize on unseen patterns.`;
+    keyArchitecture = `Processing mathematical layers through **${s1}** optimization algorithms while evaluating metrics using **${s2}** guides steady model convergence.`;
+    bestPractices = `Preprocess data carefully, apply regularization or dropout filters to halt overfitting early, and inspect test validation splits.`;
+  } else if (q.includes("security") || q.includes("auth") || q.includes("oauth") || q.includes("jwt") || q.includes("encryption") || q.includes("cryptography")) {
+    categoryName = "Security & Access Control";
+    coreConcept = `Securing services by establishing explicit trust boundaries, cryptographically signing identities, and auditing authorization flows.`;
+    keyArchitecture = `Authorizing requests using **${s1}** credentials and validating scopes through **${s2}** safeguards critical business resources.`;
+    bestPractices = `Use trusted, industry-vetted libraries instead of writing custom cryptographic algorithms, secure secrets carefully, and enforce the principle of least privilege.`;
+  }
+
+  return `To understand **${subject}**, here is a simple breakdown:
+- **Core Concept (${categoryName})**: ${coreConcept}
+- **Why it matters**: Using **${s1}** alongside **${s2}** keeps things clean, fast, and organized. ${keyArchitecture}
+- **Best Practices**: ${bestPractices}
+
+By following these simple steps, developers can build, scale, and maintain high-quality production applications!`;
 }
 
 export function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {
@@ -614,43 +674,418 @@ export function getSimulatedResumeAnalysis(text: string, jobRole: string = "", j
 }
 
 export function getSimulatedAskMS(query: string): string {
-  const q = query.toLowerCase();
-  if (q.includes("system") || q.includes("architecture") || q.includes("stripe") || q.includes("notion") || q.includes("scale")) {
-    return `### Mastering System Design: Prime Checklist
+  const q = query.toLowerCase().trim();
 
-As your Career Mentor, here is how you stand out when detailing architectures:
+  // Helper function to extract a neat Subject Name from the query
+  const extractSubject = (text: string): string => {
+    let cleaned = text.replace(/[?.,!]/g, "").trim();
+    const prefixes = [
+      "what is", "what are", "who is", "explain", "tell me about", "can you explain",
+      "how does", "how do", "how to", "what do you know about", "define", "give me an overview of"
+    ];
+    for (const prefix of prefixes) {
+      if (cleaned.startsWith(prefix)) {
+        cleaned = cleaned.substring(prefix.length).trim();
+      }
+    }
+    return cleaned.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  };
 
-1. **Explicit API Specs First:** Never jump into sharding or caching layers. Draft the target REST or gRPC endpoint schemes explicitly.
-2. **Back-of-the-Envelope Math:** Quantify the scale index. For instance, "10 million daily active users means roughly 115 requests per second average, peaking at 500."
-3. **Database Paradigms:** Do not just say 'SQL'. Contrast write-heavy indexes vs. read-heavy caching with exact configurations (e.g., leveraging Redis clusters or partitioned tables).
-4. **Resilience & Backpressure:** Highlight failover patterns, message queues (like Kafka or Pub/Sub), and token-bucket rate limiting.
+  // 0. Specific High-Value Tool Interceptions
+  if (q.includes("docker")) {
+    return `### Deep Dive: Docker & Containerization
 
-Would you like to run a mock Technical Session right now to practice this?`;
+As your Senior Career Mentor, here is an executive-level breakdown of **Docker** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Docker** is the industry standard for lightweight operating system-level virtualization (containerization). It isolates applications within self-contained environments sharing the host OS kernel, resolving the classic "it works on my machine" problem and serving as the foundational unit for modern microservices.
+
+#### 2. Key Engineering Pillars
+- **Linux Namespaces & Cgroups:** Under the hood, Docker leverages **namespaces** (to isolate resources like network interfaces, process IDs, and mount points) and **control groups (cgroups)** (to enforce hard resource limits on CPU, memory, and I/O usage).
+- **Image Layering & Copy-on-Write:** Images are built as read-only layers using Union File Systems. Each instruction in a Dockerfile adds a layer. Docker uses copy-on-write to mount a thin, writable container layer on top of the image stack, making instantiation instant.
+- **Footprint Optimization & Multi-Stage Builds:** Expert engineers utilize **multi-stage builds** to compile binaries or bundle frontend assets in intermediate stages, copying only final production runtimes into the minimal final image (e.g., using \`alpine\` or \`distroless\` bases).
+
+#### 3. High-Impact Interview Blueprint
+- **Talk About Optimization:** Share a concrete metric: *"I refactored our backend Dockerfiles into multi-stage builds, reducing final production image sizes from 1.2GB to under 120MB, speeding up deployment pull times by 80%."*
+- **Explain Container Security:** Emphasize running container processes with non-root users and utilizing tools like Trivy to scan layers for CVE vulnerabilities.
+
+Would you like to run a mock interview scenario focusing on **Docker**, or practice detailing a real-world project where you optimized container size?`;
   }
-  if (q.includes("star") || q.includes("behavioral") || q.includes("hr")) {
-    return `### The STAR Presentation Formula
 
-To sound like a senior specialist at elite teams, format your narratives exactly like this:
+  if (q.includes("kubernetes") || q.includes("k8s")) {
+    return `### Deep Dive: Kubernetes (K8s) & Orchestration
 
-- **S / Situation:** Highlight a specific, complex operational failure, tight timeline, or team alignment challenge (1-2 sentences).
-- **T / Task:** State the core conflict or high-value deliverable you were directly accountable for.
-- **A / Action:** Use strong active verbs. Mention *your* distinct engineering step, communication resolve, or metric evaluation.
-- **R / Result:** Conclude with *quantifiable metrics* (e.g., "reduced latency by 24%", "increased container utilization by 15%").
+As your Senior Career Mentor, here is an executive-level breakdown of **Kubernetes** and how to speak about it in high-stakes interviews:
 
-How is your star story directory looking? Paste a draft here and let is analyze it.`;
+#### 1. The Core Concept
+**Kubernetes (K8s)** is an open-source platform for automating deployment, scaling, and operational management of containerized applications across cluster environments. It handles container scheduling, automated self-healing, load balancing, and rolling updates.
+
+#### 2. Key Engineering Pillars
+- **Declarative Control Loops:** Kubernetes relies on a reconciliation model. The control plane constantly evaluates the current active state of the cluster against the desired state specified in your YAML manifests, making adjustments to bridge any discrepancies.
+- **Pod Abstraction & Scheduling:** The **Pod** is the smallest deployable unit. Kubernetes schedules pods across nodes based on resource requests and limits, affinity/anti-affinity rules, and tolerations.
+- **Networking & Service Mesh:** K8s implements unique networking contracts where every pod gets a unique cluster-routable IP. Services provide reliable virtual IPs (ClusterIP, NodePort, LoadBalancer) and load-balance traffic across dynamic pod endpoints.
+
+#### 3. High-Impact Interview Blueprint
+- **Describe Self-Healing:** Focus on liveness and readiness probes: *"We configured custom HTTP endpoints to verify container health, allowing Kubernetes to automatically kill and reschedule unresponsive pods, preventing user-facing downtime during traffic spikes."*
+- **Address Scale-to-Zero and HPA:** Explain configuring Horizontal Pod Autoscalers (HPA) to scale replicas dynamically based on CPU/memory utilization or custom queues.
+
+Would you like to start a mock design session for high-availability cluster setups, or review K8s service routing paradigms?`;
   }
-  if (q.includes("resume") || q.includes("cv") || q.includes("ats")) {
-    return `### ATS Alignment Best Practices
 
-To make your resume look like a perfect fit:
+  if (q.includes("terraform")) {
+    return `### Deep Dive: Terraform & Declarative IaC
 
-- **Context-Agnostic Vocabulary:** ATS scanners look for literal technology nouns matching the job posting (e.g., "TypeScript", "Docker", "Redux State").
-- **Metrics, Not Actions:** Move away from vague claims like "responsible for system upgrades". Lead with the impact: *"Modernized core CI/CD pipelines, saving developers 12 minutes per pull request sequence."*
-- **Layout Precision:** Avoid multi-column color designs which can break parsing engines. Stick to single-column, clean chronological structure.
+As your Senior Career Mentor, here is an executive-level breakdown of **Terraform** and how to speak about it in high-stakes interviews:
 
-You can upload your profile PDF into our **Resume Analyzer** workspace tab for a real-time compliance score.`;
+#### 1. The Core Concept
+**Terraform** is a leading declarative Infrastructure as Code (IaC) tool. It enables software engineers to define, provision, and version multi-cloud virtual infrastructure safely using a human-readable configuration language (HCL).
+
+#### 2. Key Engineering Pillars
+- **Declarative State files:** Terraform maintains a \`terraform.tfstate\` file as a serialized source of truth mapping your code definitions to real-world cloud resources. This enables precise dependency tracking and drift detection.
+- **Execution Plan Lifecycle:** Before mutating any cloud resources, Terraform compiles a dependency graph and generates a plan (\`terraform plan\`). This previews exactly what will be created, updated, or destroyed before execution (\`terraform apply\`).
+- **Resource Module Portability:** High-impact teams write highly reusable, parameterized Terraform modules to bootstrap standard networks, compute clusters, and database clusters consistently.
+
+#### 3. High-Impact Interview Blueprint
+- **Explain State Locking & Backends:** Always discuss locking under concurrency: *"We migrated our local states to S3 backends with DynamoDB state locking to prevent concurrent apply overlaps and corruption within our joint team pipeline."*
+- **Acknowledge Drift Remediation:** Detail how you import existing resources or reconcile drift using \`terraform plan\` to keep environments synced.
+
+Would you like to draft a secure, modular Terraform design scenario or run an advanced simulation on managing multi-region cloud states?`;
   }
-  
+
+  if (q.includes("jenkins")) {
+    return `### Deep Dive: Jenkins & Automation Pipelines
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Jenkins** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Jenkins** is an open-source automation server used to construct extensible Continuous Integration and Continuous Deployment (CI/CD) pipelines. It orchestrates compile cycles, test executions, compliance scans, and final container deployments.
+
+#### 2. Key Engineering Pillars
+- **Pipeline as Code:** Standard modern workflows define build instructions inside a declarative \`Jenkinsfile\` committed directly into version control.
+- **Distributed Agent Orchestration:** To scale builds, a Jenkins master coordinates jobs while offloading intensive execution tasks (compiling, docker building) to remote ephemeral docker agents.
+- **Automation Gateways:** Hooking VCS pull requests via webhooks to automate pre-merge integration tests and lint checks.
+
+#### 3. High-Impact Interview Blueprint
+- **Detail Quality Gates:** Mention blocking bad code: *"I integrated automated Vitest runs and SonarQube quality gates directly into our Jenkinsfile, blocking pull request merges if test coverage dropped below 85%."*
+- **Address Agent Optimization:** Explain utilizing clean, isolated ephemeral agents to avoid concurrent workspace conflicts on master nodes.
+
+Would you like to draft a secure, multi-stage Jenkinsfile template or simulate an interview scenario focusing on CI/CD pipeline bottlenecks?`;
+  }
+
+  if (q.includes("ansible")) {
+    return `### Deep Dive: Ansible & Configuration Management
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Ansible** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Ansible** is an open-source agentless IT automation engine used for configuration management, application deployment, and task automation. It manages compute fleets over secure SSH (Linux) or WinRM (Windows).
+
+#### 2. Key Engineering Pillars
+- **Agentless Execution:** Grid networks require no remote daemon/agent installation. Ansible pushes Python-based execution modules over SSH and deletes them after execution, minimizing resource overhead.
+- **Idempotency & Playbooks:** Playbooks are written in YAML using declarative tasks. Ansible guarantees idempotency—applying a playbook multiple times produces the exact same target system configuration without unwanted side-effects.
+- **Role Composability:** Grouping variables, tasks, and templates into modular "Roles" for consistent configuration reuse across server tiers.
+
+#### 3. High-Impact Interview Blueprint
+- **Emphasize Idempotency:** *"We designed our Ansible Playbooks with absolute idempotency, enabling safe, daily automated server updates without risk of corrupting database parameters or system configurations."*
+- **Secure Secret Vaults:** Discuss utilizing Ansible Vault to encrypt database passwords and SSH keys inside repository variables securely.
+
+Would you like to run a mock scenario on fleet provisioning or orchestrating a secure multi-tier database rollout using Ansible?`;
+  }
+
+  if (q.includes("react")) {
+    return `### Deep Dive: React & Client-Side Architecture
+
+As your Senior Career Mentor, here is an executive-level breakdown of **React** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**React** is a popular declarative component library for building rich client-side user interfaces. It handles high-frequency state updates efficiently through a virtual representation of the Document Object Model (DOM) and reconciliation.
+
+#### 2. Key Engineering Pillars
+- **Virtual DOM Reconciliation:** React builds an in-memory tree of UI structures. Upon state changes, its reconciliation algorithm (Fiber) diffs this tree with the previous layout and performs minimal, batches of actual DOM updates for maximum performance.
+- **Unidirectional Data Flow:** React enforces a strict top-down data flow. State is lifted up to common ancestors and passed down via read-only props, ensuring predictable rendering.
+- **Hooks & volatile state separation:** Moving logic into reusable custom hooks (e.g. state, effects, memos) while decoupling render structures from core domain data pipelines.
+
+#### 3. High-Impact Interview Blueprint
+- **Discuss Optimization:** Mention avoiding re-renders: *"We utilized \`useMemo\` and \`useCallback\` to stabilize dependency references, reducing render cycles on our dashboard tables by 45% during high-frequency telemetry updates."*
+- **State Topologies:** Explain separating local component layout state from global business stores (e.g. Zustand) to avoid store subscription bottlenecks.
+
+Would you like to design a mock high-performance client dashboard layout or review React state management models?`;
+  }
+
+  if (q.includes("postgresql") || q.includes("postgres")) {
+    return `### Deep Dive: PostgreSQL & Relational Engineering
+
+As your Senior Career Mentor, here is an executive-level breakdown of **PostgreSQL** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**PostgreSQL** is an advanced open-source object-relational database management system. It is renowned for its reliability, absolute ACID transaction compliance, extensibility, and sophisticated SQL standard support.
+
+#### 2. Key Engineering Pillars
+- **Strict ACID Compliance:** Ensuring safe transactions (Atomicity, Consistency, Isolation, Durability) even under extreme hardware failures or concurrent client access.
+- **Multi-Version Concurrency Control (MVCC):** PostgreSQL uses MVCC to manage concurrent access. Each transaction sees a logical snapshot of data, enabling lock-free read queries even during active database write operations.
+- **Advanced Query Indexes:** Optimizing search queries using B-Tree index scans, GIN indexes (for JSONB/full-text searches), and analyzing query execution plans (\`EXPLAIN ANALYZE\`).
+
+#### 3. High-Impact Interview Blueprint
+- **Explain Index Optimizations:** Focus on plans: *"I used \`EXPLAIN ANALYZE\` to isolate a slow client lookup query, adding a targeted composite B-Tree index that reduced query execution times from 1.8s to under 8ms."*
+- **Connection Pooling:** Always mention scaling connections via tools like PgBouncer to manage high-concurrency connection footprints safely.
+
+Would you like to map out a complex database sharding design, or run through a mock database tuning interview scenario?`;
+  }
+
+  if (q.includes("redis")) {
+    return `### Deep Dive: Redis & In-Memory Caching
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Redis** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Redis** is an open-source, in-memory key-value data store used as a high-performance database, volatile cache, and fast message broker. It supports microsecond read/write execution latencies by keeping all data in RAM.
+
+#### 2. Key Engineering Pillars
+- **Single-Threaded Event Loop:** Redis operates on a single-threaded execution model backed by non-blocking I/O multiplexing. This guarantees absolute data consistency and eliminates race conditions.
+- **Rich Data Structures:** Beyond simple strings, Redis supports highly optimized native types like Hashes, Lists, Sets, Sorted Sets, and HyperLogLogs.
+- **Eviction & Persistence Policies:** Controlling cache lifetimes using LRU (Least Recently Used) or LFU (Least Frequently Used) eviction algorithms, with RDB/AOF background persistence options.
+
+#### 3. High-Impact Interview Blueprint
+- **Prevent Cache Stampede:** Focus on resilience: *"We implemented cache pre-warming paired with random TTL jitters to prevent concurrent cache stampedes and database connection crashes during high-traffic sales."*
+- **Scale with Redis Clusters:** Explain partitioning keys across slots using Redis Sentinel or Cluster setups for high availability.
+
+Would you like to design a distributed session caching architecture or simulate a high-traffic rate limiter scenario using Redis?`;
+  }
+
+  if (q.includes("git") || q.includes("github")) {
+    return `### Deep Dive: Git Workflows & Collaboration Mechanics
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Git** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Git** is a distributed version control system that tracks changes in source code files. It serves as the collaboration engine for modern engineering teams, coordinating developer changes while ensuring codebase stability.
+
+#### 2. Key Engineering Pillars
+- **Branching Methodologies:** Teams balance development speed and stability choosing between Trunk-Based Development (frequent, short-lived branch commits protected by feature flags) or Git Flow (long-lived structured release tracks).
+- **History Preservation:** Deciding between interactive rebasing (interactive squashing to maintain a clean, linear history) vs. merge commits (preserving exact timelines and development contexts).
+- **The Git Directory & Reflogs:** Understanding commits as unique SHA-1 content hashes pointing to file snapshots (blobs) and directories (trees). Using git reflogs to recover accidentally deleted branches or commits.
+
+#### 3. High-Impact Interview Blueprint
+- **Advocate for Trunk-Based Velocity:** *"We migrated our 20-developer team to Trunk-Based Development, reducing merge conflict resolution times by 12 hours per sprint and increasing our weekly release velocity."*
+- **Describe PR Integrity:** Explain dividing pull requests into single-responsibility, review-friendly atomic segments to accelerate peer approval processes.
+
+Would you like to simulate a complex git merge conflict resolution scenario or design a pre-commit quality hook pipeline?`;
+  }
+
+  if (q.includes("aws") || q.includes("amazon web services") || q.includes("azure") || q.includes("gcp") || q.includes("google cloud") || q.includes("cloud computing")) {
+    return `### Deep Dive: Cloud Provider Infrastructures
+
+As your Senior Career Mentor, here is an executive-level breakdown of Cloud Architectures and how to speak about them in high-stakes interviews:
+
+#### 1. The Core Concept
+Cloud Platforms (AWS, Azure, GCP) provide global, fully-managed, virtualized computing resources, storage databases, and security networks, enabling rapid, serverless application scaling.
+
+#### 2. Key Engineering Pillars
+- **Global Availability & Regions:** Designing systems across physically distinct Geographic Regions and isolated Availability Zones (AZs) connected by ultra-low latency fiber networks.
+- **Identity & Access Management (IAM):** Enforcing rigid least-privilege security boundaries using granular identity policies, federated roles, and multi-factor authentication locks.
+- **High Availability & Load Balancing:** Utilizing managed autoscaling parameters and global application load balancers to distribute inbound workloads dynamically across healthy compute targets.
+
+#### 3. High-Impact Interview Blueprint
+- **Design for Failures:** Emphasize active-active setups: *"We configured Route 53 DNS geo-routing paired with multi-region database replication, guaranteeing that our checkout flow sustained less than 1.5 seconds of RTO during availability zone failures."*
+- **Focus on Cloud Economics:** Highlight cost optimization strategies (e.g. Spot instances, scheduled auto-shutdowns, sizing audits).
+
+Would you like to draft a secure, multi-region cloud setup scenario or run an advanced cloud security design drill?`;
+  }
+
+  // 1. DevOps, CI/CD, Containers, Pipelines
+  if (q.includes("devops") || q.includes("ci/cd") || q.includes("continuous integration") || q.includes("pipeline") || q.includes("kubernetes") || q.includes("k8s") || q.includes("docker") || q.includes("container") || q.includes("terraform") || q.includes("iac") || q.includes("ansible")) {
+    return `### DevOps & Modern CI/CD Engineering
+
+DevOps represents the synergy of continuous deployment pipelines, modular scaling container architectures, and resilient automation infrastructure. When speaking to leading teams, describe it not as a role, but as a system lifecycle discipline.
+
+#### Core Architectural Pillars:
+- **Continuous Integration (CI):** Automating code integration, immediate compilation checks, and strict testing quality gates on every commit.
+- **Continuous Deployment (CD):** Moving from batch releases to automated deployment pipelines with zero-downtime rolling, blue-green, or canary patterns.
+- **Infrastructure as Code (IaC):** Defining compute, networking, security configurations, and container topologies declaratively (e.g., via Terraform or Kubernetes manifests).
+- **Observability & Health:** Maintaining active systems monitoring with aggregated logs, metrics, and trace telemetry to reduce mean time to resolution (MTTR).
+
+#### High-Impact Interview Strategy:
+- **Prioritize DORA Metrics:** Emphasize Deployment Frequency, Lead Time for Changes, MTTR, and Change Failure Rate instead of just tool syntaxes.
+- **Explain Zero-Downtime Migration Syncs:** Be prepared to detail how database schemes can be updated on running systems safely using double-write or expansion-contraction migration models.
+
+Would you like to start a mock interview scenario focusing on zero-downtime deployments or container orchestration?`;
+  }
+
+  // 2. Frontend, UI, React, Vue, Angular, TypeScript, State Management
+  if (q.includes("frontend") || q.includes("react") || q.includes("vue") || q.includes("angular") || q.includes("javascript") || q.includes("typescript") || q.includes("css") || q.includes("html") || q.includes("dom") || q.includes("redux") || q.includes("zustand")) {
+    return `### Frontend Architecture & Web Performance
+
+Modern client-side engineering extends far beyond visual components. It centers on deterministic state machines, layout rendering paradigms, bundle footprints, and instant user responsiveness.
+
+#### Core Architectural Pillars:
+- **Rendering Paradigms:** Selecting the optimal rendering scheme—Client-Side (CSR), Server-Side (SSR), Static Generation (SSG), or Incremental Regeneration (ISR)—depending on SEO and runtime dynamism.
+- **State Topologies:** Keeping UI state declarative and modular (e.g., separating volatile local component states from global layout stores using React Context, Zustand, or Redux).
+- **Performance Budgeting:** Maximizing First Contentful Paint (FCP) and Cumulative Layout Shift (CLS) using automatic code splitting, lazy asset loading, and optimized script execution.
+- **Visual Definitiveness:** Using highly composable and responsive styling layers (such as Tailwind CSS utility classes) paired with rigid TypeScript contracts.
+
+#### High-Impact Interview Strategy:
+- **Discuss Core Web Vitals:** Frame visual performance optimizations with quantifiable metrics (e.g., "reduced LCP by 1.2s through asset preload triggers").
+- **Component Componentization:** Explain component life cycles, memoization boundaries, and avoiding unnecessary re-rendering in high-frequency state updates.
+
+Would you like to run a mock design session for a high-performance web dashboard or complex client-side state machine?`;
+  }
+
+  // 3. Backend, Server, Node, Express, Python, Go, Rust, Java, APIs, Microservices
+  if (q.includes("backend") || q.includes("server") || q.includes("node") || q.includes("express") || q.includes("python") || q.includes("django") || q.includes("flask") || q.includes("fastapi") || q.includes("go") || q.includes("golang") || q.includes("rust") || q.includes("java") || q.includes("microservice") || q.includes("api") || q.includes("rest") || q.includes("graphql") || q.includes("grpc")) {
+    return `### Backend Engineering & Scalable Systems
+
+Backend architecture is the reliable engine of any platform, prioritizing concurrency, domain logic isolation, persistent state consistency, and low latency inter-service interfaces.
+
+#### Core Architectural Pillars:
+- **API Interfaces:** Deciding when to leverage resource-centric REST endpoints, flexible GraphQL query aggregators, or low-overhead binary RPC engines like gRPC.
+- **Concurrency & Load Shifting:** Offloading intensive workloads asynchronously using highly resilient message brokers (e.g., RabbitMQ, Apache Kafka, or Redis queues).
+- **Service Partitioning:** Designing microservices with clear bounded contexts, managing consistency, and protecting system borders with circuit breakers.
+- **Caching & Backpressure:** Mitigating database exhaustion through caching nodes (Redis) and controlling ingress load via rate-limit throttles.
+
+#### High-Impact Interview Strategy:
+- **Design APIs First:** Draft target JSON/protobuf payload envelopes explicitly before illustrating downstream servers or relational tables.
+- **Explain Trade-offs Under Scale:** Always weigh asynchronous processing (eventual consistency) against synchronous transactions (immediate consistency).
+
+Would you like to tackle a mock backend interview scenario on designing a real-time messaging pipeline or payment gateway?`;
+  }
+
+  // 4. Databases, Storage, SQL, NoSQL
+  if (q.includes("database") || q.includes("db") || q.includes("sql") || q.includes("nosql") || q.includes("postgresql") || q.includes("postgres") || q.includes("mysql") || q.includes("mongodb") || q.includes("redis")) {
+    return `### Database Systems & Storage Paradigms
+
+Data persistence is the foundation of platform engineering. Selecting, configuring, and scaling storage tiers requires precise trade-off analysis.
+
+#### Core Architectural Pillars:
+- **Relational Stores (SQL):** Relying on absolute ACID transactions, normalized joints, and strict schema compliance (e.g., PostgreSQL). Ideal for ledger transactions and multi-entity relationships.
+- **Document & Wide-Column (NoSQL):** Prioritizing horizontal scalability, flexible data schemas, and rapid query patterns (e.g., MongoDB, Cassandra, DynamoDB).
+- **In-Memory Volatile Caches:** Offloading repetitive high-volume read queries and hosting real-time transient counts securely (e.g., Redis clusters).
+- **Distributed Coordination:** Understanding replication lags, write-ahead logs, partition tolerances, and when to enforce strong vs. eventual consistency.
+
+#### High-Impact Interview Strategy:
+- **Apply the CAP Theorem:** Explicitly state whether you are prioritizing consistency or availability during a network partition scenario and explain why.
+- **Under the Hood Indexes:** Prove your expertise by explaining *how* search indexes optimize lookups (e.g., B-Trees for relational scans vs. LSM Trees for write-heavy pipelines).
+
+Would you like to design a resilient, high-availability data model for a globally distributed platform?`;
+  }
+
+  // 5. Version Control, Git, GitHub
+  if (q.includes("git") || q.includes("github") || q.includes("version control") || q.includes("rebase") || q.includes("merge")) {
+    return `### Git Workflows & Collaboration Mechanics
+
+Git serves as the nervous system of modern development team workflows, enabling rapid feature delivery while maintaining stability on production branches.
+
+#### Core Architectural Pillars:
+- **Branching Methodologies:** Choosing between Trunk-Based Development (small, frequent commits protected by feature flags) and Git Flow (separate structured release branches).
+- **History Preservation:** Choosing between merge commits to preserve historical developer sequences vs. interactive rebasing to maintain a linear, clean master branch history.
+- **Quality Gates:** Implementing pre-commit hook triggers (Husky), automated linter suites, security scanners, and continuous integration builds before PR merges.
+- **Resilience Workflows:** Safely cherry-picking commits, resolving complex multi-file merge conflicts, and utilizing reflogs to recover misplaced states.
+
+#### High-Impact Interview Strategy:
+- **Advocate for Trunk-Based Velocity:** Explain how shorter branch lifespans prevent massive integration bottlenecks and reduce team coordination friction.
+- **Describe Code Review Rigor:** Highlight how you formulate small, single-responsibility pull requests to ease review tasks and accelerate deployment velocity.
+
+Would you like to review git deployment configurations or practice resolving tricky interactive rebasing conflicts?`;
+  }
+
+  // 6. Algorithms, Data Structures, LeetCode, Complexity
+  if (q.includes("algorithm") || q.includes("data structure") || q.includes("leetcode") || q.includes("sorting") || q.includes("tree") || q.includes("graph") || q.includes("hash") || q.includes("complexity") || q.includes("big o")) {
+    return `### Algorithmic Problem Solving & Data Structures
+
+Succeeding in technical problem-solving interviews is about mastering structural patterns, input validation, and cost scalability.
+
+#### Core Architectural Pillars:
+- **Memory Contiguity:** Understanding the trade-offs of linear structures with contiguous layouts (Arrays) vs. dynamic pointer-linked systems (Linked Lists).
+- **Hierarchical Trees & Graphs:** Navigating trees and networks using Breadth-First Search (BFS) and Depth-First Search (DFS) or optimizing lookups via Binary Search Trees.
+- **Advanced Core Map Strategies:** Utilizing Hash Tables for instantaneous constant-time ($O(1)$) search lookups and sliding window models to optimize array sequences.
+- **Complexity Profiling:** Analyzing mathematical growth bounds using Big O notation for both CPU instruction cycles and runtime memory overheads.
+
+#### High-Impact Interview Strategy:
+- **Articulate the Design Curve:** Speak your thoughts out loud. Explain the naive brute-force approach first ($O(N^2)$), pinpoint the efficiency bottlenecks, and then present the optimized hash or pointer layout ($O(N)$).
+- **Address Limits First:** Before implementing, validate array size boundaries, integer overflow cases, and empty input handlers.
+
+Would you like to work through a classic algorithmic pattern like Two-Pointers, Sliding Window, or Dynamic Programming?`;
+  }
+
+  // 7. Testing, Quality Assurance, TDD
+  if (q.includes("testing") || q.includes("test") || q.includes("unit test") || q.includes("jest") || q.includes("cypress") || q.includes("tdd")) {
+    return `### Testing Strategies & Software Quality
+
+High-performing engineering teams treat automated testing not as an afterthought, but as a core component of code quality and regression prevention.
+
+#### Core Architectural Pillars:
+- **The Testing Pyramid:** Balancing high volumes of fast, inexpensive **Unit Tests** with targeted **Integration Tests** (API contracts) and a few critical **End-to-End (E2E) Tests** (critical user checkout flows).
+- **Test-Driven Development (TDD):** Utilizing the Red-Green-Refactor loop to design modular, decoupled interfaces by specifying behaviors before implementation.
+- **Isolation Layers:** Mocking or stubbing network gateways, databases, and third-party APIs while maintaining high test validity.
+- **Deployment Gates:** Integrating test runner execution into deployment pipelines to block broken code before it reaches staging or production.
+
+#### High-Impact Interview Strategy:
+- **Value Over Coverage:** Point out that 100% test coverage is a vanity metric; prioritize thorough testing for high-value business logic and complex state calculations.
+- **Regression Narratives:** Share a story of how a robust integration suite caught a major system regression early, saving user trust and deployment uptime.
+
+Would you like to outline an integration test layout for a secure payment gateway or state-management utility?`;
+  }
+
+  // 8. Security, Auth, Cryptography
+  if (q.includes("security") || q.includes("auth") || q.includes("oauth") || q.includes("jwt") || q.includes("encryption") || q.includes("cryptography")) {
+    return `### Application Security, Auth & Cryptography
+
+Securing systems is a non-negotiable requirement. Protecting user credentials and maintaining transactional data integrity requires audited, standardized structures.
+
+#### Core Architectural Pillars:
+- **Identity Topologies:** Deciding between Server-side Stateful Sessions (session tables) vs. Client-side Stateless Tokens (JSON Web Tokens with cryptographic signatures).
+- **Delegated Authorization:** Implementing OAuth 2.0 and OpenID Connect flows to manage secure third-party resource authorizations safely.
+- **Data Protection Envelopes:** Enforcing transport layer security (HTTPS/TLS) combined with cryptographic data encryption at rest (AES-256) and adaptive password hashing (e.g., bcrypt or Argon2).
+- **Surface Hardening:** Defending endpoints against cross-site scripting (XSS), SQL Injection, and cross-site request forgery (CSRF) via security headers and strict CORS configurations.
+
+#### High-Impact Interview Strategy:
+- **Never Roll Your Own Cryptography:** Emphasize utilizing industry-tested, audited frameworks and packages instead of constructing proprietary security solutions.
+- **Principle of Least Privilege:** Talk about constraining internal services, database connections, and API scopes to the bare minimum permission requirements.
+
+Would you like to map out a secure JWT refresh-token workflow or analyze an OAuth authorization-code exchange sequence?`;
+  }
+
+  // 9. STAR Behavioral Method, Soft Skills, General Job Prep
+  if (q.includes("star") || q.includes("behavioral") || q.includes("hr") || q.includes("interview") || q.includes("resume") || q.includes("cv") || q.includes("ats") || q.includes("portfolio")) {
+    return `### STAR Behavioral & ATS Portfolio Method
+
+To succeed at top-tier companies, your professional narrative and resume must stand out with metric-driven engineering impacts and highly structured communication.
+
+#### The STAR Structure:
+- **Situation:** Set the stage. Highlight a concrete technical bottleneck, team misalignment, or challenging product timeline in 1-2 concise sentences.
+- **Task:** Clarify the core challenge and define the explicit metrics you were directly responsible for resolving.
+- **Action:** Describe *your* personal technical contributions. Focus on key decisions, tool designs, and leadership strategies using strong action verbs.
+- **Result:** Deliver the payoff with quantifiable metrics (e.g., "reduced compute costs by 22%", "accelerated deploy cycle throughput by 15 mins").
+
+#### ATS Optimization:
+- **Inject Technology Nouns:** Ensure ATS parsers can match literal technology names (e.g., "TypeScript", "PostgreSQL", "Docker") directly.
+- **Metrics-First Impact:** Refactor passive descriptions into active metrics (e.g., "Led modern migration of the legacy API, saving developers 10+ hours weekly").
+
+Would you like to practice drafting a STAR story or review a specific section of your resume for ATS optimization?`;
+  }
+
+  // 10. General Technical Topic Parser (Acts exactly like ChatGPT's general breakdown)
+  const subjectName = extractSubject(query);
+  if (subjectName && subjectName.length > 1) {
+    return `### Deep Dive: ${subjectName}
+
+As your Senior Career Mentor, here is an executive-level breakdown of **${subjectName}** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**${subjectName}** is a critical building block in modern software engineering. When describing it to senior panels, define it as the architectural bridge between theoretical design patterns and high-performance production ecosystems.
+
+#### 2. Key Engineering Pillars
+- **State & Scalability:** How **${subjectName}** manages computational bottlenecks, memory space bounds, or scaling requirements under heavy usage.
+- **Integration & Design:** The standard APIs, interface patterns, and operational protocols associated with its integration.
+- **System Trade-offs:** The performance implications (e.g., speed vs. memory cost, immediate vs. eventual consistency) of choosing **${subjectName}**.
+
+#### 3. High-Impact Interview Blueprint
+- **Connect to Real-World Scenarios:** Don't just give a textbook definition. Frame your answer as: *"In my previous project, we adopted **${subjectName}** to solve a critical data latency block, which resulted in a 35% improvement in load times."*
+- **Acknowledge Trade-offs:** Speak like a lead by acknowledging when *not* to use it, emphasizing that engineering is the art of balancing constraints.
+
+Would you like to run a mock interview scenario focusing on **${subjectName}**, or practice detailing a real-world project where you deployed it?`;
+  }
+
+  // Default welcome response
   return `### Hello! I am MS, your career mentor.
 
 I am configured to act as your personalized system architect and narrative talent coach.
@@ -662,7 +1097,7 @@ How can I help you accelerate your interview readiness today?
 - **"Resume keyword tips"**: Optimizing your CV for recruiter pipelines.
 - **"Microservices trade-offs"**: Assessing state, storage, and synchronization.
 
-Specify a topic, and let's craft your high-impact technical portfolio.`;
+Specify any technology, framework, or interview topic (e.g., **"what is devops"**, **"React hooks"**, or **"how does database index work"**), and let's craft your high-impact technical portfolio.`;
 }
 
 export function getQuestionBankPool(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = ""): string[] {

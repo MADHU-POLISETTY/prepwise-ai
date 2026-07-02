@@ -6,23 +6,24 @@ import {
 } from "../_utils.js";
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", ["POST"]);
-    return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
-  }
+  try {
+    if (req.method !== "POST") {
+      res.setHeader("Allow", ["POST"]);
+      return res.status(405).json({ error: `Method ${req.method} Not Allowed` });
+    }
 
-  const { 
-    category, 
-    domain, 
-    difficulty = "Medium", 
-    numQuestions: rawNumQuestions = 5, 
-    role = "Software Engineer", 
-    company = "Standard", 
-    customTopic = "",
-    previousQuestions = [],
-    questionMode = "hybrid", // "ai" | "bank" | "hybrid"
-    pinnedQuestions = [] // Specific question texts selected by the user to be included
-  } = req.body;
+    const { 
+      category, 
+      domain, 
+      difficulty = "Medium", 
+      numQuestions: rawNumQuestions = 5, 
+      role = "Software Engineer", 
+      company = "Standard", 
+      customTopic = "",
+      previousQuestions = [],
+      questionMode = "hybrid", // "ai" | "bank" | "hybrid"
+      pinnedQuestions = [] // Specific question texts selected by the user to be included
+    } = req.body || {};
 
   const numQuestions = parseInt(rawNumQuestions as any, 10) || 5;
 
@@ -422,5 +423,18 @@ ${cleanPreviousQuestions && cleanPreviousQuestions.length > 0 ? `- CRITICAL: Do 
   } catch (err: any) {
     console.warn("Gemini Hybrid generation failed, falling back to full bank (quota or API error):", err?.message || err);
     return res.status(200).json(getBankQuestionsWithPinned());
+  }
+  } catch (err: any) {
+    console.error("Top-level error caught in generate-questions handler:", err);
+    try {
+      const selectedDomain = req.body?.domain || req.body?.category || "Technical";
+      const count = parseInt(req.body?.numQuestions || "5", 10) || 5;
+      const pool = getSimulatedQuestions(selectedDomain, "Software Engineer", "Medium", "Standard", "", count);
+      return res.status(200).json(pool.slice(0, count));
+    } catch (fallbackErr) {
+      return res.status(200).json([
+        { id: 1, text: "Explain your experience with cloud and DevOps platforms." }
+      ]);
+    }
   }
 }

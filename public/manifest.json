@@ -1,0 +1,36 @@
+{
+  "short_name": "PrepWise AI",
+  "name": "PrepWise AI - Interview Platform",
+  "description": "An intelligent AI companion to help you master dynamic interviews, check resume competencies, and train performance metrics.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://img.icons8.com/isometric-line/192/ffffff/brain.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "https://img.icons8.com/isometric-line/512/ffffff/brain.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "display": "standalone",
+  "orientation": "portrait"
+}

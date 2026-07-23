@@ -1,0 +1,1456 @@
+process.noDeprecation = true;
+import dotenv from "dotenv";
+import { GoogleGenAI } from "@google/genai";
+
+
+
+if (!process.env.VERCEL) {
+  dotenv.config();
+}
+
+console.log("Gemini API Key exists:", !!process.env.GEMINI_API_KEY);
+
+let aiInstance: GoogleGenAI | null = null;
+
+export function getGeminiClient(): GoogleGenAI | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || apiKey.includes("MY_GEMINI_API_KEY")) {
+    console.warn("GEMINI_API_KEY is not configured or has dynamic default values. Serving via simulated mock backup modes.");
+    return null;
+  }
+  if (!aiInstance) {
+    aiInstance = new GoogleGenAI({
+      apiKey: apiKey,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+  }
+  return aiInstance;
+}
+
+export function parseCleanJSON(raw: string): any {
+  let text = raw.trim();
+  text = text.replace(/^```json\s*/i, "");
+  text = text.replace(/^```\s*/, "");
+  text = text.replace(/```$/, "");
+  return JSON.parse(text.trim());
+}
+
+export async function getEmbedding(client: GoogleGenAI, text: string): Promise<number[]> {
+  try {
+    const result = await client.models.embedContent({
+      model: "text-embedding-004",
+      contents: text,
+    });
+    if (result.embeddings && result.embeddings[0] && result.embeddings[0].values) {
+      return result.embeddings[0].values;
+    }
+    throw new Error("Unable to extract embedding values");
+  } catch (err) {
+    console.log("Embedding not available. Activating standard backup.");
+    throw err;
+  }
+}
+
+export function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (!vecA || !vecB || vecA.length === 0 || vecB.length === 0) {
+    return 0;
+  }
+  if (vecA.length !== vecB.length) {
+    console.warn(`Embedding vectors length mismatch: ${vecA.length} vs ${vecB.length}`);
+    return 0;
+  }
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+export function isGibberishOrInvalid(text: string): boolean {
+  const clean = text.trim().toLowerCase();
+  if (!clean) return true;
+  if (clean.length < 5) return true;
+  
+  const lettersCount = (clean.match(/[a-z]/g) || []).length;
+  if (lettersCount < clean.length * 0.3) return true;
+
+  if (/^(.)\1{3,}$/.test(clean.replace(/\s+/g, ''))) return true;
+
+  if (clean.length >= 8) {
+    const half = clean.substring(0, clean.length / 2);
+    if (clean === half + half) return true;
+    const third = clean.substring(0, clean.length / 3);
+    if (clean === third + third + third) return true;
+  }
+
+  const lazyWords = ["idk", "skip", "none", "nothing", "no idea", "asdf", "asdfgh", "qwer", "qwerty", "test", "hello", "hi", "placeholder"];
+  if (lazyWords.includes(clean)) return true;
+
+  if (/^[bcdfghjklmnpqrstvwxyz\s]{5,}$/.test(clean)) return true;
+  if (/^[aeiou\s]{5,}$/.test(clean)) return true;
+
+  return false;
+}
+
+export function generateFallbackIdealAnswer(question: string): string {
+  const q = question.toLowerCase();
+
+  // Java Pool
+  if (q.includes("core pillars of oop") || q.includes("encapsulation improve maintainability")) {
+    return "The 4 main ideas of Object-Oriented Programming (OOP) in Java are:\n- **Encapsulation**: Keeping data safe inside a class by using private variables and public getter/setter methods. This stops other code from messing up your data.\n- **Inheritance**: Letting a new class copy features from an existing class to save time and reuse code.\n- **Polymorphism**: Letting different classes use the same method name but behave in their own way.\n- **Abstraction**: Hiding complex inner details and only showing what is needed.\nThese help you write clean, organized, and easy-to-fix code.";
+  }
+  if (q.includes("differences between list, set, and map") || (q.includes("hashmap") && q.includes("treemap"))) {
+    return "In Java, we use List, Set, and Map to store collections of data:\n- **List**: Stores items in a specific order and allows duplicate items (like a shopping list). Example: ArrayList.\n- **Set**: Stores unique items in no specific order and does not allow duplicate items. Example: HashSet.\n- **Map**: Stores items as key-value pairs (like a dictionary where you look up a word/key to get its meaning/value). Example: HashMap.\nYou should choose HashMap because it is super fast for finding and saving things. Use TreeMap only if you want your keys to be automatically sorted, but note that it is slightly slower.";
+  }
+  if (q.includes("volatile variables") || q.includes("memory visibility in java")) {
+    return "In Java multithreading (running multiple tasks at once), we use these to keep variables safe:\n- **Volatile**: A keyword that tells Java to read and write a variable directly from the main computer memory, not from a local cache. This makes sure all threads see changes instantly.\n- **Synchronized**: A block of code that only one thread can run at a time. It locks the resource so threads don't overwrite each other's work and cause bugs.";
+  }
+  if (q.includes("modern exception handling") || q.includes("checked and unchecked exceptions")) {
+    return "Exceptions are errors that happen when your program runs. We handle them using try-catch blocks to prevent crashes:\n- **Checked Exceptions**: Errors the Java compiler forces you to handle before running the program (like missing files - IOException).\n- **Unchecked Exceptions**: Runtime errors that happen due to coding mistakes (like dividing by zero or NullPointerException). You don't have to declare these, but you should write code that avoids them.";
+  }
+  if (q.includes("jdbc") || q.includes("connection pooling")) {
+    return "JDBC is how Java connects to databases to read or write data. Since opening a new connection for every single query is very slow, we use **Connection Pooling**. This keeps a small group (pool) of active connections open and ready to use. When your app needs to run a query, it borrows a connection from the pool and returns it immediately after, making database operations much faster.";
+  }
+  if (q.includes("spring boot") || q.includes("dependency injection")) {
+    return "Spring Boot makes building Java apps much easier using two key features:\n- **Dependency Injection (DI)**: Letting Spring automatically create and handle objects for you using simple annotations like `@Autowired`, so you don't have to write `new Object()` everywhere.\n- **Auto-configuration**: Spring Boot automatically configures default settings (like a web server and database connections) based on the starter packages you add, so you can start writing code right away.";
+  }
+  if (q.includes("jvm") || q.includes("garbage collector")) {
+    return "The Java Virtual Machine (JVM) is what runs your Java program. It has three main parts:\n- **Class Loader**: Loads your code files.\n- **Memory Areas (Stack and Heap)**: The Stack holds temporary local variables, while the Heap stores all created objects.\n- **Garbage Collector**: Automatically looks for objects on the Heap that are no longer being used and deletes them to free up computer memory.";
+  }
+  if (q.includes("heap vs. stack") || q.includes("outofmemoryerror")) {
+    return "Java uses two types of memory:\n- **Stack**: Very fast, small memory used to store simple variables and active function calls.\n- **Heap**: Larger memory used to store all your actual objects.\nIf your app runs out of Heap space, you get an `OutOfMemoryError`. To avoid this, don't keep hold of objects you no longer need, avoid creating too many large objects inside loops, and let the Garbage Collector do its job.";
+  }
+  if (q.includes("java 8 features") || q.includes("streams api") || q.includes("lambda expressions")) {
+    return "Java 8 added powerful features for modern coding:\n- **Lambda Expressions**: A shortcut way to write small, anonymous functions in a single line.\n- **Functional Interface**: An interface with only one method (perfect for Lambdas).\n- **Streams API**: A clean, beginner-friendly way to process lists of data (like filtering, sorting, or mapping items) without writing long, messy loops.";
+  }
+  if (q.includes("singleton or factory") || q.includes("design pattern")) {
+    return "Design patterns are standard templates for solving common coding problems:\n- **Singleton Pattern**: Ensures a class can only ever have one single object (instance) created. We use this for shared resources like database connections.\n- **Factory Pattern**: A way to create objects without using the `new` keyword directly. Instead, you call a 'factory' helper method, which gives you the correct object, keeping your code flexible.";
+  }
+
+  // Python Pool
+  if (q.includes("oop (object-oriented programming) in python") || q.includes("inheritance and polymorphism")) {
+    return "Object-Oriented Programming (OOP) is a way to organize code into classes (blueprints) and objects (instances):\n- **Inheritance**: Letting a new child class copy methods and attributes from a parent class to reuse code.\n- **Polymorphism**: Letting different classes use the exact same function name but execute different actions.\n- **Encapsulation**: Hiding private data from external code using double underscores `__`.\n- **Abstraction**: Showing only the simple, necessary details.";
+  }
+  if (q.includes("decorators in python") || q.includes("custom decorator")) {
+    return "A **Decorator** is a special Python feature that lets you modify or add behavior to a function without changing its actual code. It wraps the original function. For example, to make a custom decorator to measure execution time, you write a function that notes the start time, runs the target function, notes the end time, prints the difference, and returns the result.";
+  }
+  if (q.includes("python generators") || q.includes("memory-efficient compared to normal list returns")) {
+    return "Python **Generators** are special functions that yield values one at a time using the `yield` keyword instead of returning a whole list at once. They are extremely memory-efficient. If you have a list of one million items, a standard list loads all of them into memory at once, which can crash your app. A generator only creates one item at a time as you ask for it, using almost zero memory.";
+  }
+  if (q.includes("list comprehension in python") || q.includes("squared_evens")) {
+    return "A **List Comprehension** is a neat, one-line way to create new lists in Python. For example: `squared_evens = [x**2 for x in numbers if x % 2 == 0]`. It replaces a longer `for` loop and `if` statement. It also runs faster because Python optimizes it internally under the hood, making it both faster and cleaner.";
+  }
+  if (q.includes("vector operations") || q.includes("numpy array structures")) {
+    return "**NumPy** is a popular Python library for math and data science. Unlike normal Python lists, NumPy arrays allow **vectorized operations**. This means you can add, subtract, or multiply entire arrays at once (like `A + B`) without using slow `for` loops. NumPy does this by running fast, pre-compiled C code in the background, making it extremely fast for handling large numbers.";
+  }
+  if (q.includes("pandas dataframes") || q.includes("missing values")) {
+    return "A **Pandas DataFrame** is like an Excel table with rows and columns. To handle missing (null) values, you can use:\n- `df.dropna()` to delete rows with missing data.\n- `df.fillna(value)` to fill empty spaces with a default value (like 0 or the average).\nTo group and average data, use `df.groupby('column').mean()`, which groups your data and calculates the average for each category.";
+  }
+  if (q.includes("flask framework") || q.includes("simple rest api endpoint")) {
+    return "**Flask** is a very lightweight and simple tool to build web apps in Python. To create a simple API endpoint:\n- Import Flask and jsonify.\n- Use `@app.route('/api', methods=['GET'])` to set up a web URL.\n- Inside the function, return your data as `jsonify(data)`.\nFlask automatically handles the web request and returns the data in a standard format (JSON) that other apps can understand.";
+  }
+  if (q.includes("django") || q.includes("mvt")) {
+    return "**Django** is a powerful Python web framework that comes with everything built-in. It uses the **MVT (Model-View-Template)** layout:\n- **Model**: Defines your database tables and manages your data.\n- **View**: Contains the main logic, receives web requests, gets data from the Model, and sends it to the Template.\n- **Template**: The HTML page that the user sees on their screen.";
+  }
+  if (q.includes("try-except-finally blocks") || q.includes("custom exceptions")) {
+    return "In Python, we handle errors using try-except blocks to stop our program from crashing:\n- **try**: Holds the code that might fail.\n- **except**: Catches and handles specific errors (like dividing by zero).\n- **finally**: Code that runs no matter what (like closing a database).\nYou can also create **Custom Exceptions** (your own error types) to make your code easier to read and debug.";
+  }
+  if (q.includes("deep copy and shallow copy") || q.includes("manage references")) {
+    return "In Python, variables point to objects in memory:\n- **Shallow Copy**: Copies the main object, but keeps references to nested items. If you change a nested item in the copy, the original changes too.\n- **Deep Copy**: Copies absolutely everything, including all nested items. The copy is completely independent of the original.\nPython automatically cleans up memory using a reference counter to delete objects that are no longer used.";
+  }
+
+  // AWS Pool
+  if (q.includes("amazon ec2") || q.includes("on-demand and spot instances")) {
+    return "**Amazon EC2** is where you rent virtual computers in the cloud to run your applications.\n- **On-Demand Instances**: You pay a fixed price per hour with no commitments. You can start and stop them whenever you want.\n- **Spot Instances**: You bid on spare, unused AWS computers at a massive discount (up to 90%). However, AWS can take them back with a 2-minute warning if someone else needs them. Use Spot instances for tasks that can be paused safely.";
+  }
+  if (q.includes("amazon s3") || q.includes("bucket policies")) {
+    return "**Amazon S3** is a simple, highly secure cloud storage system where you can upload files, images, and videos.\n- **Bucket Policies**: Rules that define who can view or modify your uploaded files.\n- **Versioning**: Saves older versions of your files so you can recover them if deleted by accident.\n- **Lifecycle Rules**: Automatically deletes old files or moves them to cheaper, long-term storage to save you money.";
+  }
+  if (q.includes("vpc") || q.includes("public and private subnets")) {
+    return "A **VPC (Virtual Private Cloud)** is your own private network in AWS. To keep things secure, you split it into:\n- **Public Subnet**: Connected to the internet (e.g., for load balancers or public websites).\n- **Private Subnet**: Completely disconnected from the public internet to keep databases and backend servers safe. Outbound updates go through a secure NAT Gateway.";
+  }
+  if (q.includes("iam roles") || q.includes("least privilege in aws")) {
+    return "**IAM** manages who can access your AWS resources:\n- **IAM Users**: Individual people or accounts with permanent passwords or keys.\n- **IAM Roles**: Temporary permissions that services or users can assume safely.\n- **Principle of Least Privilege**: A security rule that says you should only give users the absolute minimum permissions they need to do their job, preventing accidents or security leaks.";
+  }
+  if (q.includes("amazon rds") || q.includes("multi-az replication")) {
+    return "**Amazon RDS** makes it easy to set up and run databases in the cloud. By enabling **Multi-AZ (Availability Zone)** replication, AWS automatically copies your database to a second database in a different physical location. If your main database goes down due to a power outage or error, RDS instantly switches to the backup database with zero downtime.";
+  }
+  if (q.includes("route 53") || q.includes("global dns resolution")) {
+    return "**Amazon Route 53** is AWS's cloud DNS service. It translates human-friendly website names (like `mysite.com`) into computer IP addresses. It helps keep your app online by checking if your servers are healthy. If a server fails, Route 53 automatically redirects visitors to a healthy backup server in a different location.";
+  }
+  if (q.includes("application load balancers") || q.includes("distributing incoming application traffic")) {
+    return "An **Application Load Balancer (ALB)** acts as a traffic cop. When thousands of users visit your website, the ALB distributes the traffic evenly across all your healthy servers so no single server gets overloaded. It also performs continuous health checks and automatically stops sending traffic to any server that is broken or offline.";
+  }
+  if (q.includes("aws auto scaling") || q.includes("adjust ec2 capacity")) {
+    return "**AWS Auto Scaling** automatically adds or removes servers based on real-time traffic demand. For example, if your website suddenly gets a huge spike in visitors and CPU usage goes above 70%, Auto Scaling instantly launches new EC2 servers to handle the load. When visitors leave, it automatically shuts down the extra servers to save you money.";
+  }
+  if (q.includes("serverless computing on aws") || q.includes("aws lambda operates")) {
+    return "**Serverless Computing** means you write and upload code without worrying about managing any servers or operating systems. **AWS Lambda** is a serverless service that runs your code only when triggered by an event (like a user uploading an image). You only pay for the exact milliseconds your code runs, and it automatically scales to handle any number of requests.";
+  }
+  if (q.includes("cloudwatch") || q.includes("monitor infrastructure metrics")) {
+    return "**Amazon CloudWatch** is a tool that monitors your AWS resources (like CPU, memory, and database speed). You can set up **CloudWatch Alarms** that trigger when something goes wrong (for example, if a server's CPU is too high for 5 minutes). The alarm can automatically send you an email alert or trigger Auto Scaling to add another server.";
+  }
+
+  // DevOps Pool
+  if (q.includes("ci/cd") && q.includes("continuous automated software delivery")) {
+    return "**CI/CD** stands for Continuous Integration and Continuous Deployment.\n- **Continuous Integration (CI)**: Automatically compiles your code and runs tests every time you make a change, helping catch bugs early.\n- **Continuous Deployment (CD)**: Automatically deploys your tested code to your live website.\nThis saves developers from having to deploy code manually, prevents errors, and lets you release updates to users much faster.";
+  }
+  if (q.includes("jenkins") || q.includes("declarative pipelines")) {
+    return "**Jenkins** is a popular automation tool used to build CI/CD pipelines. It uses a text file called a **Jenkinsfile** (written in simple, structured steps) to define how your code is built, tested, and deployed. It also securely stores your database passwords, SSH keys, and API credentials, injecting them safely during the deployment process without exposing them in your code.";
+  }
+  if (q.includes("docker image") && q.includes("running docker container")) {
+    return "**Docker** makes it easy to run applications anywhere:\n- **Docker Image**: A frozen, read-only template containing your application code, libraries, and settings (like a recipe).\n- **Docker Container**: A live, running instance of that image (like the baked cake).\nDocker speeds up builds by caching unchanged layers, so it only rebuilds parts of your app that have actually changed.";
+  }
+  if (q.includes("kubernetes") && q.includes("pods, deployments, and services")) {
+    return "**Kubernetes** is a tool that manages and coordinates your Docker containers:\n- **Pod**: The smallest unit, holding one or more containers.\n- **Deployment**: A manager that ensures the exact number of pods you want are always running and healthy.\n- **Service**: Gives your pods a single, permanent IP address so other parts of your app can talk to them easily.";
+  }
+  if (q.includes("terraform") && q.includes("state locking")) {
+    return "**Terraform** is an Infrastructure as Code (IaC) tool that lets you set up cloud resources (like AWS servers) by writing simple text files. It tracks everything in a **state file**. To prevent two developers from running Terraform at the same time and messing up the cloud settings, it uses **state locking**, which temporarily locks the file until the current setup is finished.";
+  }
+  if (q.includes("git branching strategies") || q.includes("gitflow")) {
+    return "Branching strategies help teams work on the same code without conflicts:\n- **GitFlow**: A structured setup where feature development happens on 'feature' branches, merged into a 'develop' branch, and finally put into the 'main' branch for release.\n- **Trunk-based Development**: A faster approach where developers push small, frequent updates directly to the main branch daily, relying on automated tests and feature toggles to keep things stable.";
+  }
+  if (q.includes("linux commands for diagnosing") || q.includes("cpu usage, memory bottlenecks")) {
+    return "If your Linux server is running slowly, you can use these simple commands to troubleshoot:\n- `top` or `htop`: Shows real-time CPU and memory usage of running apps.\n- `free -m`: Shows how much RAM is free and used in megabytes.\n- `df -h`: Shows how much hard disk space is left.\n- `ps aux`: Lists all active tasks on the system.";
+  }
+  if (q.includes("proactive infrastructure monitoring") || q.includes("prometheus and grafana")) {
+    return "Monitoring helps you fix server issues before users notice:\n- **Prometheus**: A tool that automatically collects and saves metrics (like RAM usage or page load times) at regular intervals.\n- **Grafana**: A beautiful dashboard tool that connects to Prometheus to show those metrics in simple, easy-to-read charts and sends alerts if a server goes offline.";
+  }
+  if (q.includes("ansible") || q.includes("agentless configuration")) {
+    return "**Ansible** is an automation tool used to configure and set up servers. It is **agentless**, meaning you don't need to install any special software on your servers; it connects securely using standard SSH. You write your setup steps in simple, human-readable YAML files called **Playbooks** (e.g., 'install Node.js', 'copy config file').";
+  }
+  if (q.includes("infrastructure as code (iac)") || q.includes("benefits of infrastructure as code")) {
+    return "**Infrastructure as Code (IaC)** means defining your cloud setup (servers, databases, networks) using simple text files instead of clicking around in a browser console. The key benefits are:\n- **Consistency**: You can spin up an identical test server in minutes with zero human error.\n- **Speed**: Automates hours of manual setup.\n- **Version Control**: You can track changes in Git and roll back if something breaks.";
+  }
+
+  // Cloud Computing Pool
+  if (q.includes("iaas, paas, and saas")) {
+    return "Cloud computing has three main models:\n- **IaaS (Infrastructure as a Service)**: You rent raw hardware and networks (like AWS EC2) and manage the operating system and apps yourself.\n- **PaaS (Platform as a Service)**: The cloud provider manages the servers and OS (like Heroku). You just upload your code.\n- **SaaS (Software as a Service)**: Ready-to-use software running in a browser (like Gmail or Google Docs).";
+  }
+  if (q.includes("virtualization in cloud") || q.includes("hypervisors")) {
+    return "**Virtualization** is the core technology of the cloud. It lets you split one powerful physical computer into multiple virtual computers (VMs). This is done using software called a **Hypervisor**. The hypervisor allocates CPU, RAM, and storage to each VM, keeping them completely isolated so they can run different operating systems on the same physical machine.";
+  }
+  if (q.includes("public cloud, private cloud") || q.includes("hybrid cloud architectures")) {
+    return "There are three main ways to deploy cloud resources:\n- **Public Cloud**: Shared infrastructure owned by a provider like AWS or Google Cloud. It's cheap, fast, and highly scalable.\n- **Private Cloud**: Dedicated hardware owned and used by only one company, offering maximum security.\n- **Hybrid Cloud**: A mix of both. Sensitive data is kept in the private cloud, while web traffic scales on the public cloud.";
+  }
+  if (q.includes("cloud security best practices") || q.includes("protecting data at rest")) {
+    return "To keep cloud data safe:\n- **Data at Rest (on disk)**: Encrypt it using AES-256 (like locking it in a digital safe).\n- **Data in Transit (over network)**: Use secure HTTPS (TLS) connections so hackers can't intercept it.\n- **Access Control**: Enable Multi-Factor Authentication (MFA) and give users the absolute minimum permissions they need.";
+  }
+  if (q.includes("multi-region cloud") || q.includes("geographical disaster recovery")) {
+    return "A **multi-region** setup means running your app in two or more physical locations (like US-East and Europe). If a natural disaster takes down the entire US data center, your traffic is automatically routed to Europe, keeping your app online. It also makes your app load faster for global users by serving them from the nearest location.";
+  }
+  if (q.includes("shared responsibility model") || q.includes("patching guest operating systems")) {
+    return "The **Shared Responsibility Model** defines who is responsible for cloud security:\n- **The Provider (like AWS)**: Responsible for the physical data center security, physical servers, and hypervisors.\n- **The Customer (You)**: Responsible for your data, code, and configurations. For virtual servers, you are responsible for updating and patching the operating system.";
+  }
+  if (q.includes("horizontal scaling vs vertical scaling")) {
+    return "Scaling means adding more power to handle more users:\n- **Vertical Scaling (Scaling Up)**: Making your existing server bigger (adding more RAM or CPU). This is easy but has physical limits.\n- **Horizontal Scaling (Scaling Out)**: Adding more identical servers to share the load. This is much better because it has no limit and keeps your app online if one server crashes.";
+  }
+  if (q.includes("content delivery networks") || q.includes("edge caching")) {
+    return "A **Content Delivery Network (CDN)** speeds up websites by copying your static files (like images and videos) to edge servers all around the world. When a user visits your site, the CDN serves files from the nearest edge server instead of your main server, drastically reducing load times and saving your main server from getting overloaded.";
+  }
+  if (q.includes("cloud tenant isolation") || q.includes("multi-tenancy")) {
+    return "**Tenant Isolation** is how cloud providers make sure different customers (tenants) sharing the same physical hardware cannot see or edit each other's data. It uses hypervisors to split CPU/RAM, private virtual networks (VPCs) to isolate web traffic, and separate encryption keys so each customer's data is completely private.";
+  }
+
+  // AI/ML Pool
+  if (q.includes("supervised, unsupervised, and reinforcement")) {
+    return "There are three main types of Machine Learning:\n- **Supervised Learning**: Training a model with labeled data (like showing it photos of cats labeled 'cat' so it learns to identify them).\n- **Unsupervised Learning**: Giving the model raw, unlabeled data and letting it find patterns or groups on its own (like grouping similar customers).\n- **Reinforcement Learning**: Training an AI agent through trial and error with rewards and penalties (like teaching a virtual robot to walk or play games).";
+  }
+  if (q.includes("deep learning") && q.includes("hierarchical representations")) {
+    return "**Deep Learning** is a type of machine learning that uses layers of artificial neural networks (inspired by the human brain) to learn complex patterns. Each layer learns increasingly complicated features. For example, in face recognition, the first layer might find simple edges, the next layer finds shapes like eyes and noses, and the final layer recognizes the whole face.";
+  }
+  if (q.includes("convolutional neural network") || q.includes("cnn") || q.includes("convolutional layers")) {
+    return "A **Convolutional Neural Network (CNN)** is a special deep learning network used for images. It uses **convolutional layers** that slide small math filters (like a magnifying glass) across an image to find patterns like lines, curves, and textures. It also uses **pooling layers** to shrink the data, making it incredibly good at recognizing objects in photos.";
+  }
+  if (q.includes("recurrent neural networks") || q.includes("lstms mitigate vanishing gradients")) {
+    return "**Recurrent Neural Networks (RNNs)** are used for sequential data like text, speech, or time-series. They remember past steps to understand the current input. However, normal RNNs have a 'vanishing gradient' problem where they forget older information. **LSTM (Long Short-Term Memory)** networks solve this by using special 'gates' to choose what information to keep or forget over long periods.";
+  }
+  if (q.includes("natural language processing") || q.includes("tokenization and embedding")) {
+    return "**Natural Language Processing (NLP)** helps computers understand human language. Since computers only understand numbers, text goes through:\n- **Tokenization**: Splitting a sentence into smaller pieces (words or word fragments called tokens) and mapping them to numbers.\n- **Embedding**: Converting those numbers into high-dimensional vectors that represent the meaning of the words mathematically, allowing the computer to understand synonyms.";
+  }
+  if (q.includes("large language models") || q.includes("transformer architecture") || q.includes("self-attention")) {
+    return "**Large Language Models (LLMs)** are AI models trained on massive amounts of text to understand and generate human-like writing. They use the **Transformer architecture**, which relies on **self-attention**. Self-attention lets the model process all words in a sentence at the exact same time and connect related words together, regardless of how far apart they are.";
+  }
+  if (q.includes("gradient descent") || q.includes("learning rates")) {
+    return "**Gradient Descent** is an optimization algorithm used to minimize a model's errors (loss) by slowly adjusting its weights. The **learning rate** is a small multiplier that controls how big of a step the algorithm takes. If the learning rate is too high, the model overshoots the target and fails to learn. If it is too low, training will be painfully slow.";
+  }
+  if (q.includes("overfitting") && (q.includes("regularization") || q.includes("dropout") || q.includes("early stopping"))) {
+    return "**Overfitting** happens when an AI model learns the training data too well (including random noise) and fails to perform well on new, unseen data. To prevent this, we use:\n- **Regularization**: Adds a small penalty to keep weights small.\n- **Dropout**: Temporarily turns off random neurons during training to keep the network robust.\n- **Early Stopping**: Halts training as soon as the test performance begins to drop.";
+  }
+  if (q.includes("feature engineering") || q.includes("input representations")) {
+    return "**Feature Engineering** is the process of converting raw, messy data into neat inputs that a machine learning model can understand easily. This is the most important step because a model's accuracy depends entirely on the quality of its inputs. It includes scaling numbers, converting text into vector embeddings, and creating new variables that highlight important trends.";
+  }
+  if (q.includes("evaluate machine learning models") || q.includes("precision, recall")) {
+    return "To evaluate a model's performance, we look at different metrics:\n- **Accuracy**: The percentage of correct predictions (can be misleading if classes are imbalanced).\n- **Precision**: Out of all items the model predicted as positive, how many were actually correct?\n- **Recall**: Out of all actual positive items, how many did the model manage to catch?\n- **F1-Score**: A balanced average of both precision and recall.";
+  }
+
+  // Aptitude Pool
+  if (q.includes("laptop is bought for $800") || q.includes("profit percentage")) {
+    return "To find the profit percentage:\n1. Find the actual money profit: Selling Price - Cost Price = $1000 - $800 = $200.\n2. Divide the profit by the original cost price: $200 / $800 = 0.25.\n3. Multiply by 100 to make it a percentage: 0.25 * 100 = 25%.\nSo, the profit percentage is 25%. This corresponds to option C.";
+  }
+  if (q.includes("clock shows exactly 3:15") || q.includes("angle in degrees between the hour hand and the minute hand")) {
+    return "At exactly 3:15, the minute hand points directly at the 3. But the hour hand has moved a tiny bit past the 3 because 15 minutes have passed.\n- In 1 hour (60 minutes), the hour hand moves 30 degrees (since 360 degrees / 12 hours = 30).\n- In 15 minutes, the hour hand moves: (15 / 60) * 30 = 7.5 degrees.\nSo, the angle between the hour hand and the minute hand is exactly 7.5 degrees. This corresponds to option B.";
+  }
+  if (q.includes("5 workers can build a wall") || q.includes("6 workers to build the same wall")) {
+    return "To solve this:\n1. Find the total work required in terms of 'worker-days': 5 workers * 12 days = 60 worker-days.\n2. Now, we have 6 workers to do the same 60 worker-days of work.\n3. Divide the total work by the number of workers: 60 / 6 = 10 days.\nSo, it will take 6 workers exactly 10 days to build the wall. This corresponds to option B.";
+  }
+  if (q.includes("train travels at a speed of 60") || q.includes("travel in 2.5 hours")) {
+    return "To find the distance:\n- Use the simple formula: Distance = Speed * Time.\n- The speed is 60 miles per hour, and the time is 2.5 hours.\n- Distance = 60 * 2.5 = 150 miles.\nSo, the train will travel a total of 150 miles. This corresponds to option B.";
+  }
+  if (q.includes("next number in the logical series: 2, 6, 12")) {
+    return "Let's look at how the numbers grow:\n- From 2 to 6: We add +4.\n- From 6 to 12: We add +6.\n- From 12 to 20: We add +8.\n- From 20 to 30: We add +10.\nNotice that we add consecutive even numbers (+4, +6, +8, +10). The next even number to add must be +12.\n- 30 + 12 = 42.\nSo, the next number in the series is 42. This corresponds to option C.";
+  }
+  if (q.includes("pointing to a photograph, amit said")) {
+    return "Let's trace the family tree step-by-step:\n1. 'My grandfather' means Amit's grandfather.\n2. 'The only son of my grandfather' must be Amit's father (since his grandfather has only one son).\n3. 'Her father' is this only son, meaning Amit's father is the father of the girl in the picture.\nSince Amit and the girl share the same father, the girl must be Amit's sister. This corresponds to option A.";
+  }
+  if (q.includes("odd one out") && q.includes("carrot")) {
+    return "Let's look at the items:\n- Apple, Banana, and Grape are all sweet fruits that grow on trees or vines.\n- Carrot is a root vegetable that grows underground.\nSince Carrot is a vegetable and the others are fruits, Carrot is the odd one out. This corresponds to option C.";
+  }
+  if (q.includes("apple") && q.includes("eppla") && q.includes("grape")) {
+    return "Let's look at the coding rule for 'APPLE' to 'EPPLA':\n- Swap the first letter 'A' and the last letter 'E' (putting 'E' at the front and 'A' at the back).\n- Keep the middle letters 'P', 'P', 'L' in their exact same spots.\nNow, let's do the same for 'GRAPE':\n- Swap the first letter 'G' and the last letter 'E' (putting 'E' at the front and 'G' at the back).\n- Keep the middle letters 'R', 'A', 'P' in their exact same spots.\nThe coded word is 'ERAPG'. This corresponds to option A.";
+  }
+
+  // Behavioral HR
+  if (q.includes("challenge you faced during a project") || q.includes("what actions did you take to resolve it")) {
+    return "Using the STAR framework, here is an easy way to structure your answer:\n- **Situation**: In a school project, our app load times were super slow (over 5 seconds).\n- **Task**: My goal was to reduce this load time to under 1 second.\n- **Action**: I used tool profiles, added database indexes, and set up Redis caching to store frequent queries.\n- **Result**: The load time dropped to 0.8 seconds, making the app feel super fast and responsive for our users.";
+  }
+  if (q.includes("conflict in your team") || q.includes("handle the situation, and what did you learn")) {
+    return "Here is a simple, structured response using the STAR framework:\n- **Situation**: My team had a major disagreement on whether to build a complex backend or a simple one.\n- **Task**: I needed to resolve the conflict so we didn't miss our project deadline.\n- **Action**: I set up an open meeting where we listed the pros and cons of both based on our time limit. We agreed on a simple backend first, but structured it so we could expand it easily later.\n- **Result**: We resolved the tension, completed the project on time, and I learned that looking at factual pros and cons beats arguing.";
+  }
+  if (q.includes("showed leadership") || q.includes("guide others toward a successful")) {
+    return "Here is an easy, beginner-friendly STAR answer:\n- **Situation**: During a team project, our main developer got sick two weeks before the deadline.\n- **Task**: I stepped up to coordinate the team and finish the project.\n- **Action**: I organized daily 10-minute standup meetings to divide the work, focused on finishing only the most important features, and personally helped integrate the payment screens.\n- **Result**: We finished and launched the app on time with all core features working, showing that great communication keeps a team stable.";
+  }
+  if (q.includes("project failure") || q.includes("crashed our main user checkout")) {
+    return "Here is a simple STAR framework response:\n- **Situation**: In my first project, I pushed a small code change without testing, which crashed the app's checkout page for two hours.\n- **Task**: I had to fix the bug quickly and make sure it never happened again.\n- **Action**: I rolled back the change, analyzed why it failed, wrote automatic tests to catch it, and created a rule that all code must be reviewed.\n- **Result**: The app was fixed, and we had zero crashes after that. I learned that writing tests is always better than rushing.";
+  }
+  if (q.includes("adapt quickly to changing requirements") || q.includes("manage your tasks")) {
+    return "Here is a clear, simple STAR answer:\n- **Situation**: One week before launching a client portal, the client changed the login requirement to require secure Google/GitHub login.\n- **Task**: I had to add this new login system without delaying the launch.\n- **Action**: I paused non-essential design updates, researched pre-made secure login libraries, and worked in short iterations to integrate the logins.\n- **Result**: We added the secure logins and launched the app on time, learning that being flexible and prioritizing tasks is key to success.";
+  }
+
+  // System Design
+  if (q.includes("system scalability") || q.includes("trade-offs between horizontal")) {
+    return "System scalability means making your application able to handle more users as it grows:\n- **Vertical Scaling (Scaling Up)**: Making a single server more powerful by adding more RAM and CPU. This is simple but has a physical limit and creates a single point of failure.\n- **Horizontal Scaling (Scaling Out)**: Adding more identical servers to share the load. This requires a load balancer but allows you to scale indefinitely and keeps your app online if one server crashes.";
+  }
+  if (q.includes("load balancers") && q.includes("round-robin")) {
+    return "A Load Balancer acts like a friendly traffic cop. When thousands of users visit your website at once, it distributes the traffic evenly across all your healthy servers so no single server gets overloaded. It also checks if any server is offline and stops sending traffic to it. A common algorithm is **Round-Robin**, which sends request 1 to Server A, request 2 to Server B, request 3 to Server C, and then loops back.";
+  }
+  if (q.includes("relational databases differ from nosql") || q.includes("schema flexibility")) {
+    return "Choosing a database depends on your data:\n- **Relational Databases (like PostgreSQL)**: Store data in strict, structured tables with predefined relationships. They are great for transactions and complex queries where accuracy is key.\n- **NoSQL Databases (like MongoDB)**: Store unstructured data (like documents or key-value pairs) with no strict layout. They are incredibly easy to scale horizontally and perfect for fast, massive data writes.";
+  }
+  if (q.includes("database caching") || q.includes("redis or memcached")) {
+    return "**Database Caching** is like keeping your favorite books on your desk instead of walking to the library every time. Normal databases store data on slower disks. A cache (like Redis) stores frequently requested data directly in fast RAM memory. When your app needs data, it checks the cache first (cache hit) and returns it instantly, making your application load in microseconds.";
+  }
+  if (q.includes("cap theorem") || q.includes("consistency, availability, and partition")) {
+    return "The **CAP Theorem** says a distributed system can only guarantee 2 out of 3 things:\n- **Consistency**: Every user sees the exact same data at the same time.\n- **Availability**: Every user gets a response even if some servers are offline.\n- **Partition Tolerance**: The system keeps working even if network connections drop.\nSince network drops are inevitable, databases must choose between being fully Consistent (CP) or fully Available (AP).";
+  }
+  if (q.includes("microservices") && q.includes("decoupling applications")) {
+    return "**Microservices** means splitting a large, heavy application into small, independent services that talk to each other via lightweight APIs (e.g., separate services for Payments, Users, and Inventory). This makes building apps easier because teams can update and scale each service independently without affecting the entire application. If the Payment service crashes, users can still browse products.";
+  }
+  if (q.includes("asynchronous message queues") || q.includes("rabbitmq or kafka")) {
+    return "**Message Queues** (like RabbitMQ or Kafka) let different services talk to each other asynchronously (without waiting for an instant response). Instead of service A calling service B directly, service A drops a message in the queue and goes back to work. Service B picks up and processes the message whenever it is ready. This prevents slow-downs and keeps data safe if a service goes offline.";
+  }
+  if (q.includes("api gateway in modern microservice") || q.includes("reverse proxy that acts as the single")) {
+    return "An API Gateway acts as the single front door for your microservices. Instead of clients talking to dozens of different services directly, they talk only to the API Gateway. The gateway handles routing their requests to the right service, checking if they are logged in (authentication), and limiting how fast they can make requests (rate limiting) to keep the backend secure.";
+  }
+  if (q.includes("monitoring and alerting") || q.includes("dashboards help developers")) {
+    return "Monitoring gives developers a live dashboard (like Grafana) showing how healthy their application is. It displays charts for server CPU, memory, error rates, and load times. If something goes wrong (like a database crash), **Alerting** instantly sends a notification (like an email or SMS) to the developer so they can fix it before users start complaining.";
+  }
+  if (q.includes("single points of failure") || q.includes("redundancy at every layer")) {
+    return "A **Single Point of Failure (SPOF)** is any individual part of your system that, if it fails, brings down your entire application. To eliminate them, we use **Redundancy** (backups) at every layer:\n- Run multiple web servers behind a load balancer.\n- Set up database replication to a backup database in a different zone.\n- Use global failover routing so if one region goes down, traffic switches automatically.";
+  }
+
+  // -------------------------------------------------------------
+  // SMART DYNAMIC FALLBACK GENERATOR FOR CUSTOM/UNKNOWN QUESTIONS
+  // -------------------------------------------------------------
+  
+  // Clean question prefix to extract the direct subject
+  let subject = question.trim().replace(/[?.]+/g, "").trim();
+  const prefixes = [
+    /^(explain|describe|what is|what are|how does|how do|can you explain|tell me about|analyze|evaluate|discuss|understand|compare)\s+(the\s+)?/i,
+    /^(what\s+is\s+|what\s+are\s+|how\s+does\s+|how\s+to\s+|why\s+do\s+|explain\s+|describe\s+)/i
+  ];
+  for (const regex of prefixes) {
+    subject = subject.replace(regex, "");
+  }
+  subject = subject.trim();
+  if (subject.length > 0) {
+    subject = subject.charAt(0).toUpperCase() + subject.slice(1);
+  } else {
+    subject = "this core technology";
+  }
+
+  // Extract key subjects from the question
+  const cleanQ = question.replace(/[?.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").trim();
+  const words = cleanQ.split(/\s+/);
+  const stopWords = new Set([
+    "what", "is", "are", "explain", "how", "does", "the", "and", "or", "in", "of", "to", "for", "with", "on", "a", "an", "when", "would", "you", "choose", "over", "difference", "differences", "between", "describe", "use", "using", "why", "it", "its", "at", "about", "your", "my", "our", "their", "where", "which", "hierarchy", "deployment", "choices", "instances"
+  ]);
+  
+  const extracted: string[] = [];
+  for (const word of words) {
+    const lower = word.toLowerCase();
+    if (lower.length > 3 && !stopWords.has(lower) && !subject.toLowerCase().includes(lower)) {
+      const capitalized = word.charAt(0).toUpperCase() + word.slice(1);
+      if (!extracted.includes(capitalized)) {
+        extracted.push(capitalized);
+      }
+    }
+  }
+
+  // Specialized dynamic templates based on category clues
+  if (q.includes("a)") || q.includes("b)") || q.includes("c)") || q.includes("d)")) {
+    return "To solve this aptitude problem, let's break it down: First, read the question and find the numbers or logical clues given. Next, use a simple formula or pattern to solve it step-by-step. Finally, check your answer against the multiple-choice options to choose the correct one.";
+  }
+
+  if (q.includes("tell me") || q.includes("describe") || q.includes("conflict") || q.includes("challenge") || q.includes("leadership") || q.includes("failure") || q.includes("adapt")) {
+    return "To answer this behavioral question, use the simple **STAR** method:\n1. **Situation**: Describe the background or problem you faced.\n2. **Task**: Explain what your goal was.\n3. **Action**: Tell exactly what steps you took to solve it.\n4. **Result**: Share the successful outcome or what you learned.";
+  }
+
+  // Also try to get general words that are inside the subject but are meaningful keys
+  const subjectWords = subject.split(/\s+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
+  const s1 = subjectWords[0] || extracted[0] || "Architecture";
+  const s2 = subjectWords[1] || extracted[1] || "Best Practices";
+
+  // Detect category to make explanation highly specialized
+  let categoryName = "Software Engineering";
+  let coreConcept = `Explaining the inner workings of **${subject}** and how it integrates into the broader development lifecycle.`;
+  let keyArchitecture = `Leveraging **${s1}** alongside **${s2}** forms a resilient foundation for reliable, scalable software designs.`;
+  let bestPractices = `Write fully tested code, keep interfaces decoupled, modularize your components, and document configurations.`;
+
+  if (q.includes("azure") || q.includes("aws") || q.includes("gcp") || q.includes("cloud") || q.includes("tenant") || q.includes("iaas") || q.includes("paas") || q.includes("saas")) {
+    categoryName = "Cloud Engineering";
+    coreConcept = `Explaining how **${subject}** handles computing resource virtualization, tenant isolation, and elastic on-demand scaling.`;
+    keyArchitecture = `Integrating cloud building blocks like **${s1}** and **${s2}** enables highly-available architectures, failover routing, and global reach.`;
+    bestPractices = `Enforce proper IAM access rules, protect data both at-rest and in-transit, and configure resource monitoring and budgets.`;
+  } else if (q.includes("kubernetes") || q.includes("docker") || q.includes("ci/cd") || q.includes("pipeline") || q.includes("devops") || q.includes("terraform") || q.includes("ansible") || q.includes("jenkins")) {
+    categoryName = "DevOps & Infrastructure";
+    coreConcept = `Streamlining delivery cycles and keeping operational environments completely stable through automated workflows and deployments.`;
+    keyArchitecture = `Orchestrating **${s1}** deployments with **${s2}** automation ensures deterministic, repeatable environments and rapid release velocities.`;
+    bestPractices = `Define infrastructure as code, run automated tests as mandatory build checks, and secure variables using specialized secrets managers.`;
+  } else if (q.includes("react") || q.includes("vue") || q.includes("angular") || q.includes("javascript") || q.includes("typescript") || q.includes("frontend") || q.includes("state management") || q.includes("css") || q.includes("dom")) {
+    categoryName = "Frontend Architecture";
+    coreConcept = `Designing highly interactive, responsive, and performance-optimized client-side layouts that process user inputs cleanly.`;
+    keyArchitecture = `Managing the visual document layout with **${s1}** while binding states through **${s2}** delivers fluid, delay-free rendering.`;
+    bestPractices = `Break code into reusable components, optimize image assets, split large bundles to improve page load speed, and adhere to web accessibility standard rules.`;
+  } else if (q.includes("backend") || q.includes("express") || q.includes("node") || q.includes("django") || q.includes("fastapi") || q.includes("spring") || q.includes("api") || q.includes("rest") || q.includes("graphql") || q.includes("grpc")) {
+    categoryName = "Backend Systems";
+    coreConcept = `Constructing high-performance server layers that process domain calculations, enforce data logic, and handle service routing.`;
+    keyArchitecture = `Building resilient endpoints using **${s1}** structures alongside **${s2}** communications guarantees lower latency and clean error paths.`;
+    bestPractices = `Apply robust input schemas validation, decouple layers cleanly, set up circuit breakers for third-party calls, and implement structured server logging.`;
+  } else if (q.includes("database") || q.includes("sql") || q.includes("nosql") || q.includes("postgres") || q.includes("mysql") || q.includes("mongodb") || q.includes("redis") || q.includes("caching")) {
+    categoryName = "Database & Data Storage";
+    coreConcept = `Establishing durable, ACID-compliant persistency structures that optimize index scans, handle concurrent connections, and guarantee integrity.`;
+    keyArchitecture = `Structuring data models around **${s1}** tables or documents while caching keys inside **${s2}** reduces load on primary query layers.`;
+    bestPractices = `Create sensible indexes, avoid heavy nested loops, use connection pooling to save overheads, and run routine database schema migrations safely.`;
+  } else if (q.includes("machine learning") || q.includes("ml") || q.includes("deep learning") || q.includes("neural") || q.includes("cnn") || q.includes("rnn") || q.includes("nlp") || q.includes("llm") || q.includes("transformer") || q.includes("gradient descent")) {
+    categoryName = "AI & Machine Learning";
+    coreConcept = `Fitting predictive mathematical algorithms or layered neural networks to high-dimensional datasets to generalize on unseen patterns.`;
+    keyArchitecture = `Processing mathematical layers through **${s1}** optimization algorithms while evaluating metrics using **${s2}** guides steady model convergence.`;
+    bestPractices = `Preprocess data carefully, apply regularization or dropout filters to halt overfitting early, and inspect test validation splits.`;
+  } else if (q.includes("security") || q.includes("auth") || q.includes("oauth") || q.includes("jwt") || q.includes("encryption") || q.includes("cryptography")) {
+    categoryName = "Security & Access Control";
+    coreConcept = `Securing services by establishing explicit trust boundaries, cryptographically signing identities, and auditing authorization flows.`;
+    keyArchitecture = `Authorizing requests using **${s1}** credentials and validating scopes through **${s2}** safeguards critical business resources.`;
+    bestPractices = `Use trusted, industry-vetted libraries instead of writing custom cryptographic algorithms, secure secrets carefully, and enforce the principle of least privilege.`;
+  }
+
+  return `To understand **${subject}**, here is a simple breakdown:
+- **Core Concept (${categoryName})**: ${coreConcept}
+- **Why it matters**: Using **${s1}** alongside **${s2}** keeps things clean, fast, and organized. ${keyArchitecture}
+- **Best Practices**: ${bestPractices}
+
+By following these simple steps, developers can build, scale, and maintain high-quality production applications!`;
+}
+
+export function getSimulatedSingleAnswerEvaluation(question: string, answer: string) {
+  const clean = answer.trim();
+  const lowercaseAns = clean.toLowerCase();
+
+  let isMeaningful = true;
+  let isRelevant = true;
+  let isTechnicallyCorrect = true;
+  let score = 5;
+  let feedback = "Decent start, but the response is too brief to show full professional mastery.";
+  let improvements = "Detail the exact actions you took and the toolsets utilized (e.g., specifying Docker, AWS RDS, or JVM garbage collectors).";
+
+  if (!clean) {
+    isMeaningful = false;
+    isRelevant = false;
+    isTechnicallyCorrect = false;
+    score = 0;
+    feedback = "No answer provided.";
+    improvements = "Please write a response to receive feedback and suggestions.";
+  } else {
+    // Check if it looks like obvious gibberish or random input using the global helper
+    const isObviousGibberish = isGibberishOrInvalid(clean);
+
+    if (isObviousGibberish) {
+      isMeaningful = false;
+    } else if (lowercaseAns.includes("cricket") && question.toLowerCase().includes("gradient descent")) {
+      isRelevant = false;
+    }
+
+    if (!isMeaningful) {
+      score = 0;
+      feedback = "The answer is invalid, meaningless, or unrelated to the question.";
+      isRelevant = false;
+      isTechnicallyCorrect = false;
+      improvements = "Please write a meaningful professional response related to the question.";
+    } else if (!isRelevant) {
+      score = 0;
+      feedback = "The answer is invalid, meaningless, or unrelated to the question.";
+      isTechnicallyCorrect = false;
+      improvements = "Please write a response that directly addresses the question asked.";
+    } else {
+      if (clean.length < 15) {
+        score = 1;
+        feedback = "Your response is extremely brief and does not address the question with any professional or conceptual depth.";
+        improvements = "Please provide a structured, detailed answer of at least 2-3 sentences explaining your approach.";
+        isTechnicallyCorrect = false;
+      } else if (clean.length < 50) {
+        score = 3;
+        feedback = "Your response is brief and lacks specific details, technical terminologies, or structured context.";
+        improvements = "Expand your answer with precise technical terms. Use the STAR methodology (Situation, Task, Action, Result) to format your answers.";
+        isTechnicallyCorrect = false;
+      } else if (clean.length > 120) {
+        score = 8;
+        feedback = "This is a strong answer that shows structured context and relevant terminology. Good job explaining the workflow.";
+        improvements = "To make this answer perfect, include a direct business metric or quantitative result (e.g. 'reduced latency by 20%').";
+      } else {
+        score = 5;
+        feedback = "Decent start, but the response is too brief to show full professional mastery.";
+        improvements = "Detail the exact actions you took and the toolsets utilized (e.g., specifying Docker, AWS RDS, or JVM garbage collectors).";
+      }
+    }
+  }
+
+  return {
+    isMeaningful,
+    isRelevant,
+    isTechnicallyCorrect,
+    score,
+    feedback,
+    improvements,
+    idealAnswer: generateFallbackIdealAnswer(question)
+  };
+}
+
+export function getSimulatedEvaluation(category: string, role: string, answers: any[]) {
+  // Calculate factual mathematical average of individual question scores
+  const individualScoresSum = answers.reduce((sum: number, ans: any) => {
+    const val = typeof ans.score === 'number' ? ans.score : parseInt(ans.score as any) || 0;
+    return sum + val;
+  }, 0);
+  const maxScorePossible = answers.length * 10;
+  const mathAvgScorePercent = maxScorePossible > 0 ? Math.round((individualScoresSum / maxScorePossible) * 100) : 0;
+
+  // Calculate scores with subtle randomness but strictly bounded by quality
+  const rawScore = mathAvgScorePercent;
+  const communication = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  const technical = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 6 - 3))));
+  const confidence = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  const problemSolving = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 6 - 2))));
+  const clarity = mathAvgScorePercent === 0 ? 0 : Math.min(100, Math.max(0, Math.round(rawScore + (Math.random() * 4 - 2))));
+  
+  const finalScore = Math.round((communication + technical + confidence + problemSolving + clarity) / 5);
+
+  let feedbackIntro = "";
+  if (finalScore < 45) {
+    feedbackIntro = `### Performance Warning: Superficial or Empty Submission\n\nYour session received a lower score of **${finalScore}%** because the submitted answers were either exceptionally brief, skipped, or contained inadequate technical substance. To qualify for senior or mid-level recruitment standards, answers must display structured analytical thinking, contextual key terms, and detailed STAR examples.`;
+  } else {
+    feedbackIntro = `### Core Strengths\n\n- **Consistent Response Structures:** Your answers show deliberate planning and effort.\n- **Refined Articulation:** You correctly incorporated relevant context as a ${role}, utilizing industry-appropriate definitions.`;
+  }
+
+  const markdownFeedback = `${feedbackIntro}
+
+### Areas for Improvement
+
+- **Framing with Real metrics:** Ensure every answer highlights measurable quantitative outputs (e.g. 'reduced processing overhead by 25%'). 
+- **Structure and Sequence:** Use structural frameworks (like the **STAR framework** for behavioral tracks) to avoid jumping straight to solutions without specifying the constraints and tasks first.
+
+### 4-Week Personalized Improvement Plan
+
+- **Week 1 (Fundamentals & STAR Structure):** Re-structure all behavioral scenarios using the STAR framework. Frame your actions clearly with strong active verbs.
+- **Week 2 (Technical Terminology & Metrics):** Review databases, API design patterns, and insert solid metrics (e.g., "reduced latency by 40%").
+- **Week 3 (Mock Arena Under Time Constraints):** Run timed sandbox practices (Beginner & Intermediate) with 2-minute limits.
+- **Week 4 (Articulation Polishing & Executive Presence):** Record and evaluate your answers, checking confidence traits and removing hesitation terms.
+
+### Perfect Sample Answers
+
+#### Proposed Perfect Answer: (General conflict handling)
+*“In my previous engagement, we had a major architectural misalignment on data storage structures. I set up a timed proof-of-concept playground for both models, reviewed technical latency metrics objectively with the engineers, and aligned everyone on a unified choice. This approach resolved the conflict constructively and delivered a model that reduced database queries by 22%.”*`;
+
+  return {
+    score: finalScore,
+    communicationScore: Math.min(100, Math.max(0, communication)),
+    technicalScore: Math.min(100, Math.max(0, technical)),
+    confidenceScore: Math.min(100, Math.max(0, confidence)),
+    problemSolvingScore: Math.min(100, Math.max(0, problemSolving)),
+    clarityScore: Math.min(100, Math.max(0, clarity)),
+    feedback: markdownFeedback
+  };
+}
+
+export function getSimulatedResumeAnalysis(text: string, jobRole: string = "", jobDescription: string = "") {
+  const dummySkills = ["React/Next.js", "TypeScript", "Cloud Firestore", "Tailwind CSS", "REST Architectures", "Secure Session Engineering", "Git & CI/CD Pipelines"];
+  const dummyStrengths = [
+    "High engineering consistency with fully typed interfaces and state safety.",
+    "Proven background deploying interactive, responsive dashboards with data analytics capabilities.",
+    "Strong technical writing, layout structure, and communication flow."
+  ];
+  const dummyImprovements = [
+    "Incorporate concrete metrics for accomplishments (e.g., 'Optimized database loads by 35%').",
+    "List specific Cloud security/compliance standards (e.g., HIPAA, GDPR, RBAC configurations) where relevant.",
+    "Specify performance debugging tools or benchmark indicators utilized."
+  ];
+
+  let atsScore = 82;
+  let isSuitable = true;
+  let suitabilityVerdict = "Partially Suitable";
+  let suitabilityExplanation = "The candidate exhibits strong foundational web development and system design skills. However, some key architectural or domain-specific experiences are missing to fully satisfy this target role.";
+  let thingsToAddToResume = [
+    "Add specific project outcomes with quantitative metrics (e.g., reduced load times by 30%).",
+    "Include certifications or hands-on experience related to high-scale databases and cloud deployment.",
+    "Flesh out the professional experience bullet points with more industry keywords matching the role."
+  ];
+
+  let keywordMatches = [
+    { word: "React/Vite", matched: true },
+    { word: "TypeScript", matched: true },
+    { word: "REST API", matched: true },
+    { word: "System Design", matched: false },
+    { word: "Docker/Kubernetes", matched: false },
+    { word: "Cloud Security", matched: false },
+    { word: "State Management", matched: true }
+  ];
+  let missingSkills = ["System Design Patterns", "Docker/Kubernetes Architecture", "Cloud Security Best Practices"];
+
+  if (jobRole || jobDescription) {
+    const jdLowerJoin = (jobRole + " " + jobDescription).toLowerCase();
+    if (jdLowerJoin.includes("senior") || jdLowerJoin.includes("lead") || jdLowerJoin.includes("architect")) {
+      atsScore = 71;
+      isSuitable = false;
+      suitabilityVerdict = "Not Suitable / Needs Upgrades";
+      suitabilityExplanation = "The resume lacks the critical high-level leadership experience, system scale architectural proofs, and cloud-native cluster deployment keywords (such as Kubernetes or AWS ECS) required for a Senior/Lead level role.";
+      thingsToAddToResume = [
+        "Include details of mentoring junior developers and driving system design decisions.",
+        "Add Docker/Kubernetes container orchestration and CI/CD automation pipeline details.",
+        "Include cloud compliance, scalability indicators, and system security practices."
+      ];
+    } else {
+      atsScore = 88;
+      isSuitable = true;
+      suitabilityVerdict = "Highly Suitable";
+      suitabilityExplanation = "The candidate profile is an excellent fit for general full-stack and front-end engineering positions. Standard skills and tech stack align exceptionally well with core modern requirements.";
+      thingsToAddToResume = [
+        "Mention unit and integration testing coverage details (e.g., Jest/Vitest).",
+        "Add minor descriptions of API design and state management tools used."
+      ];
+    }
+  }
+
+  return {
+    skills: dummySkills,
+    strengths: dummyStrengths,
+    improvements: dummyImprovements,
+    summary: "A technically versatile profile exhibiting high-value front-end layout styling and back-end integration capabilities. The candidate is highly qualified to prep for premium full-stack or lead technical engineer interviews.",
+    atsScore: atsScore,
+    keywordMatches: keywordMatches,
+    missingSkills: missingSkills,
+    isSuitable: isSuitable,
+    suitabilityVerdict: suitabilityVerdict,
+    suitabilityExplanation: suitabilityExplanation,
+    thingsToAddToResume: thingsToAddToResume
+  };
+}
+
+export function getSimulatedAskMS(query: string): string {
+  const q = query.toLowerCase().trim();
+
+  // Helper function to extract a neat Subject Name from the query
+  const extractSubject = (text: string): string => {
+    let cleaned = text.replace(/[?.,!]/g, "").trim();
+    const prefixes = [
+      "what is", "what are", "who is", "explain", "tell me about", "can you explain",
+      "how does", "how do", "how to", "what do you know about", "define", "give me an overview of"
+    ];
+    for (const prefix of prefixes) {
+      if (cleaned.startsWith(prefix)) {
+        cleaned = cleaned.substring(prefix.length).trim();
+      }
+    }
+    return cleaned.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+  };
+
+  // 0. Specific High-Value Tool Interceptions
+  if (q.includes("docker")) {
+    return `### Deep Dive: Docker & Containerization
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Docker** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Docker** is the industry standard for lightweight operating system-level virtualization (containerization). It isolates applications within self-contained environments sharing the host OS kernel, resolving the classic "it works on my machine" problem and serving as the foundational unit for modern microservices.
+
+#### 2. Key Engineering Pillars
+- **Linux Namespaces & Cgroups:** Under the hood, Docker leverages **namespaces** (to isolate resources like network interfaces, process IDs, and mount points) and **control groups (cgroups)** (to enforce hard resource limits on CPU, memory, and I/O usage).
+- **Image Layering & Copy-on-Write:** Images are built as read-only layers using Union File Systems. Each instruction in a Dockerfile adds a layer. Docker uses copy-on-write to mount a thin, writable container layer on top of the image stack, making instantiation instant.
+- **Footprint Optimization & Multi-Stage Builds:** Expert engineers utilize **multi-stage builds** to compile binaries or bundle frontend assets in intermediate stages, copying only final production runtimes into the minimal final image (e.g., using \`alpine\` or \`distroless\` bases).
+
+#### 3. High-Impact Interview Blueprint
+- **Talk About Optimization:** Share a concrete metric: *"I refactored our backend Dockerfiles into multi-stage builds, reducing final production image sizes from 1.2GB to under 120MB, speeding up deployment pull times by 80%."*
+- **Explain Container Security:** Emphasize running container processes with non-root users and utilizing tools like Trivy to scan layers for CVE vulnerabilities.
+
+Would you like to run a mock interview scenario focusing on **Docker**, or practice detailing a real-world project where you optimized container size?`;
+  }
+
+  if (q.includes("kubernetes") || q.includes("k8s")) {
+    return `### Deep Dive: Kubernetes (K8s) & Orchestration
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Kubernetes** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Kubernetes (K8s)** is an open-source platform for automating deployment, scaling, and operational management of containerized applications across cluster environments. It handles container scheduling, automated self-healing, load balancing, and rolling updates.
+
+#### 2. Key Engineering Pillars
+- **Declarative Control Loops:** Kubernetes relies on a reconciliation model. The control plane constantly evaluates the current active state of the cluster against the desired state specified in your YAML manifests, making adjustments to bridge any discrepancies.
+- **Pod Abstraction & Scheduling:** The **Pod** is the smallest deployable unit. Kubernetes schedules pods across nodes based on resource requests and limits, affinity/anti-affinity rules, and tolerations.
+- **Networking & Service Mesh:** K8s implements unique networking contracts where every pod gets a unique cluster-routable IP. Services provide reliable virtual IPs (ClusterIP, NodePort, LoadBalancer) and load-balance traffic across dynamic pod endpoints.
+
+#### 3. High-Impact Interview Blueprint
+- **Describe Self-Healing:** Focus on liveness and readiness probes: *"We configured custom HTTP endpoints to verify container health, allowing Kubernetes to automatically kill and reschedule unresponsive pods, preventing user-facing downtime during traffic spikes."*
+- **Address Scale-to-Zero and HPA:** Explain configuring Horizontal Pod Autoscalers (HPA) to scale replicas dynamically based on CPU/memory utilization or custom queues.
+
+Would you like to start a mock design session for high-availability cluster setups, or review K8s service routing paradigms?`;
+  }
+
+  if (q.includes("terraform")) {
+    return `### Deep Dive: Terraform & Declarative IaC
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Terraform** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Terraform** is a leading declarative Infrastructure as Code (IaC) tool. It enables software engineers to define, provision, and version multi-cloud virtual infrastructure safely using a human-readable configuration language (HCL).
+
+#### 2. Key Engineering Pillars
+- **Declarative State files:** Terraform maintains a \`terraform.tfstate\` file as a serialized source of truth mapping your code definitions to real-world cloud resources. This enables precise dependency tracking and drift detection.
+- **Execution Plan Lifecycle:** Before mutating any cloud resources, Terraform compiles a dependency graph and generates a plan (\`terraform plan\`). This previews exactly what will be created, updated, or destroyed before execution (\`terraform apply\`).
+- **Resource Module Portability:** High-impact teams write highly reusable, parameterized Terraform modules to bootstrap standard networks, compute clusters, and database clusters consistently.
+
+#### 3. High-Impact Interview Blueprint
+- **Explain State Locking & Backends:** Always discuss locking under concurrency: *"We migrated our local states to S3 backends with DynamoDB state locking to prevent concurrent apply overlaps and corruption within our joint team pipeline."*
+- **Acknowledge Drift Remediation:** Detail how you import existing resources or reconcile drift using \`terraform plan\` to keep environments synced.
+
+Would you like to draft a secure, modular Terraform design scenario or run an advanced simulation on managing multi-region cloud states?`;
+  }
+
+  if (q.includes("jenkins")) {
+    return `### Deep Dive: Jenkins & Automation Pipelines
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Jenkins** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Jenkins** is an open-source automation server used to construct extensible Continuous Integration and Continuous Deployment (CI/CD) pipelines. It orchestrates compile cycles, test executions, compliance scans, and final container deployments.
+
+#### 2. Key Engineering Pillars
+- **Pipeline as Code:** Standard modern workflows define build instructions inside a declarative \`Jenkinsfile\` committed directly into version control.
+- **Distributed Agent Orchestration:** To scale builds, a Jenkins master coordinates jobs while offloading intensive execution tasks (compiling, docker building) to remote ephemeral docker agents.
+- **Automation Gateways:** Hooking VCS pull requests via webhooks to automate pre-merge integration tests and lint checks.
+
+#### 3. High-Impact Interview Blueprint
+- **Detail Quality Gates:** Mention blocking bad code: *"I integrated automated Vitest runs and SonarQube quality gates directly into our Jenkinsfile, blocking pull request merges if test coverage dropped below 85%."*
+- **Address Agent Optimization:** Explain utilizing clean, isolated ephemeral agents to avoid concurrent workspace conflicts on master nodes.
+
+Would you like to draft a secure, multi-stage Jenkinsfile template or simulate an interview scenario focusing on CI/CD pipeline bottlenecks?`;
+  }
+
+  if (q.includes("ansible")) {
+    return `### Deep Dive: Ansible & Configuration Management
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Ansible** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Ansible** is an open-source agentless IT automation engine used for configuration management, application deployment, and task automation. It manages compute fleets over secure SSH (Linux) or WinRM (Windows).
+
+#### 2. Key Engineering Pillars
+- **Agentless Execution:** Grid networks require no remote daemon/agent installation. Ansible pushes Python-based execution modules over SSH and deletes them after execution, minimizing resource overhead.
+- **Idempotency & Playbooks:** Playbooks are written in YAML using declarative tasks. Ansible guarantees idempotency—applying a playbook multiple times produces the exact same target system configuration without unwanted side-effects.
+- **Role Composability:** Grouping variables, tasks, and templates into modular "Roles" for consistent configuration reuse across server tiers.
+
+#### 3. High-Impact Interview Blueprint
+- **Emphasize Idempotency:** *"We designed our Ansible Playbooks with absolute idempotency, enabling safe, daily automated server updates without risk of corrupting database parameters or system configurations."*
+- **Secure Secret Vaults:** Discuss utilizing Ansible Vault to encrypt database passwords and SSH keys inside repository variables securely.
+
+Would you like to run a mock scenario on fleet provisioning or orchestrating a secure multi-tier database rollout using Ansible?`;
+  }
+
+  if (q.includes("react")) {
+    return `### Deep Dive: React & Client-Side Architecture
+
+As your Senior Career Mentor, here is an executive-level breakdown of **React** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**React** is a popular declarative component library for building rich client-side user interfaces. It handles high-frequency state updates efficiently through a virtual representation of the Document Object Model (DOM) and reconciliation.
+
+#### 2. Key Engineering Pillars
+- **Virtual DOM Reconciliation:** React builds an in-memory tree of UI structures. Upon state changes, its reconciliation algorithm (Fiber) diffs this tree with the previous layout and performs minimal, batches of actual DOM updates for maximum performance.
+- **Unidirectional Data Flow:** React enforces a strict top-down data flow. State is lifted up to common ancestors and passed down via read-only props, ensuring predictable rendering.
+- **Hooks & volatile state separation:** Moving logic into reusable custom hooks (e.g. state, effects, memos) while decoupling render structures from core domain data pipelines.
+
+#### 3. High-Impact Interview Blueprint
+- **Discuss Optimization:** Mention avoiding re-renders: *"We utilized \`useMemo\` and \`useCallback\` to stabilize dependency references, reducing render cycles on our dashboard tables by 45% during high-frequency telemetry updates."*
+- **State Topologies:** Explain separating local component layout state from global business stores (e.g. Zustand) to avoid store subscription bottlenecks.
+
+Would you like to design a mock high-performance client dashboard layout or review React state management models?`;
+  }
+
+  if (q.includes("postgresql") || q.includes("postgres")) {
+    return `### Deep Dive: PostgreSQL & Relational Engineering
+
+As your Senior Career Mentor, here is an executive-level breakdown of **PostgreSQL** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**PostgreSQL** is an advanced open-source object-relational database management system. It is renowned for its reliability, absolute ACID transaction compliance, extensibility, and sophisticated SQL standard support.
+
+#### 2. Key Engineering Pillars
+- **Strict ACID Compliance:** Ensuring safe transactions (Atomicity, Consistency, Isolation, Durability) even under extreme hardware failures or concurrent client access.
+- **Multi-Version Concurrency Control (MVCC):** PostgreSQL uses MVCC to manage concurrent access. Each transaction sees a logical snapshot of data, enabling lock-free read queries even during active database write operations.
+- **Advanced Query Indexes:** Optimizing search queries using B-Tree index scans, GIN indexes (for JSONB/full-text searches), and analyzing query execution plans (\`EXPLAIN ANALYZE\`).
+
+#### 3. High-Impact Interview Blueprint
+- **Explain Index Optimizations:** Focus on plans: *"I used \`EXPLAIN ANALYZE\` to isolate a slow client lookup query, adding a targeted composite B-Tree index that reduced query execution times from 1.8s to under 8ms."*
+- **Connection Pooling:** Always mention scaling connections via tools like PgBouncer to manage high-concurrency connection footprints safely.
+
+Would you like to map out a complex database sharding design, or run through a mock database tuning interview scenario?`;
+  }
+
+  if (q.includes("redis")) {
+    return `### Deep Dive: Redis & In-Memory Caching
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Redis** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Redis** is an open-source, in-memory key-value data store used as a high-performance database, volatile cache, and fast message broker. It supports microsecond read/write execution latencies by keeping all data in RAM.
+
+#### 2. Key Engineering Pillars
+- **Single-Threaded Event Loop:** Redis operates on a single-threaded execution model backed by non-blocking I/O multiplexing. This guarantees absolute data consistency and eliminates race conditions.
+- **Rich Data Structures:** Beyond simple strings, Redis supports highly optimized native types like Hashes, Lists, Sets, Sorted Sets, and HyperLogLogs.
+- **Eviction & Persistence Policies:** Controlling cache lifetimes using LRU (Least Recently Used) or LFU (Least Frequently Used) eviction algorithms, with RDB/AOF background persistence options.
+
+#### 3. High-Impact Interview Blueprint
+- **Prevent Cache Stampede:** Focus on resilience: *"We implemented cache pre-warming paired with random TTL jitters to prevent concurrent cache stampedes and database connection crashes during high-traffic sales."*
+- **Scale with Redis Clusters:** Explain partitioning keys across slots using Redis Sentinel or Cluster setups for high availability.
+
+Would you like to design a distributed session caching architecture or simulate a high-traffic rate limiter scenario using Redis?`;
+  }
+
+  if (q.includes("git") || q.includes("github")) {
+    return `### Deep Dive: Git Workflows & Collaboration Mechanics
+
+As your Senior Career Mentor, here is an executive-level breakdown of **Git** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**Git** is a distributed version control system that tracks changes in source code files. It serves as the collaboration engine for modern engineering teams, coordinating developer changes while ensuring codebase stability.
+
+#### 2. Key Engineering Pillars
+- **Branching Methodologies:** Teams balance development speed and stability choosing between Trunk-Based Development (frequent, short-lived branch commits protected by feature flags) or Git Flow (long-lived structured release tracks).
+- **History Preservation:** Deciding between interactive rebasing (interactive squashing to maintain a clean, linear history) vs. merge commits (preserving exact timelines and development contexts).
+- **The Git Directory & Reflogs:** Understanding commits as unique SHA-1 content hashes pointing to file snapshots (blobs) and directories (trees). Using git reflogs to recover accidentally deleted branches or commits.
+
+#### 3. High-Impact Interview Blueprint
+- **Advocate for Trunk-Based Velocity:** *"We migrated our 20-developer team to Trunk-Based Development, reducing merge conflict resolution times by 12 hours per sprint and increasing our weekly release velocity."*
+- **Describe PR Integrity:** Explain dividing pull requests into single-responsibility, review-friendly atomic segments to accelerate peer approval processes.
+
+Would you like to simulate a complex git merge conflict resolution scenario or design a pre-commit quality hook pipeline?`;
+  }
+
+  if (q.includes("aws") || q.includes("amazon web services") || q.includes("azure") || q.includes("gcp") || q.includes("google cloud") || q.includes("cloud computing")) {
+    return `### Deep Dive: Cloud Provider Infrastructures
+
+As your Senior Career Mentor, here is an executive-level breakdown of Cloud Architectures and how to speak about them in high-stakes interviews:
+
+#### 1. The Core Concept
+Cloud Platforms (AWS, Azure, GCP) provide global, fully-managed, virtualized computing resources, storage databases, and security networks, enabling rapid, serverless application scaling.
+
+#### 2. Key Engineering Pillars
+- **Global Availability & Regions:** Designing systems across physically distinct Geographic Regions and isolated Availability Zones (AZs) connected by ultra-low latency fiber networks.
+- **Identity & Access Management (IAM):** Enforcing rigid least-privilege security boundaries using granular identity policies, federated roles, and multi-factor authentication locks.
+- **High Availability & Load Balancing:** Utilizing managed autoscaling parameters and global application load balancers to distribute inbound workloads dynamically across healthy compute targets.
+
+#### 3. High-Impact Interview Blueprint
+- **Design for Failures:** Emphasize active-active setups: *"We configured Route 53 DNS geo-routing paired with multi-region database replication, guaranteeing that our checkout flow sustained less than 1.5 seconds of RTO during availability zone failures."*
+- **Focus on Cloud Economics:** Highlight cost optimization strategies (e.g. Spot instances, scheduled auto-shutdowns, sizing audits).
+
+Would you like to draft a secure, multi-region cloud setup scenario or run an advanced cloud security design drill?`;
+  }
+
+  // 1. DevOps, CI/CD, Containers, Pipelines
+  if (q.includes("devops") || q.includes("ci/cd") || q.includes("continuous integration") || q.includes("pipeline") || q.includes("kubernetes") || q.includes("k8s") || q.includes("docker") || q.includes("container") || q.includes("terraform") || q.includes("iac") || q.includes("ansible")) {
+    return `### DevOps & Modern CI/CD Engineering
+
+DevOps represents the synergy of continuous deployment pipelines, modular scaling container architectures, and resilient automation infrastructure. When speaking to leading teams, describe it not as a role, but as a system lifecycle discipline.
+
+#### Core Architectural Pillars:
+- **Continuous Integration (CI):** Automating code integration, immediate compilation checks, and strict testing quality gates on every commit.
+- **Continuous Deployment (CD):** Moving from batch releases to automated deployment pipelines with zero-downtime rolling, blue-green, or canary patterns.
+- **Infrastructure as Code (IaC):** Defining compute, networking, security configurations, and container topologies declaratively (e.g., via Terraform or Kubernetes manifests).
+- **Observability & Health:** Maintaining active systems monitoring with aggregated logs, metrics, and trace telemetry to reduce mean time to resolution (MTTR).
+
+#### High-Impact Interview Strategy:
+- **Prioritize DORA Metrics:** Emphasize Deployment Frequency, Lead Time for Changes, MTTR, and Change Failure Rate instead of just tool syntaxes.
+- **Explain Zero-Downtime Migration Syncs:** Be prepared to detail how database schemes can be updated on running systems safely using double-write or expansion-contraction migration models.
+
+Would you like to start a mock interview scenario focusing on zero-downtime deployments or container orchestration?`;
+  }
+
+  // 2. Frontend, UI, React, Vue, Angular, TypeScript, State Management
+  if (q.includes("frontend") || q.includes("react") || q.includes("vue") || q.includes("angular") || q.includes("javascript") || q.includes("typescript") || q.includes("css") || q.includes("html") || q.includes("dom") || q.includes("redux") || q.includes("zustand")) {
+    return `### Frontend Architecture & Web Performance
+
+Modern client-side engineering extends far beyond visual components. It centers on deterministic state machines, layout rendering paradigms, bundle footprints, and instant user responsiveness.
+
+#### Core Architectural Pillars:
+- **Rendering Paradigms:** Selecting the optimal rendering scheme—Client-Side (CSR), Server-Side (SSR), Static Generation (SSG), or Incremental Regeneration (ISR)—depending on SEO and runtime dynamism.
+- **State Topologies:** Keeping UI state declarative and modular (e.g., separating volatile local component states from global layout stores using React Context, Zustand, or Redux).
+- **Performance Budgeting:** Maximizing First Contentful Paint (FCP) and Cumulative Layout Shift (CLS) using automatic code splitting, lazy asset loading, and optimized script execution.
+- **Visual Definitiveness:** Using highly composable and responsive styling layers (such as Tailwind CSS utility classes) paired with rigid TypeScript contracts.
+
+#### High-Impact Interview Strategy:
+- **Discuss Core Web Vitals:** Frame visual performance optimizations with quantifiable metrics (e.g., "reduced LCP by 1.2s through asset preload triggers").
+- **Component Componentization:** Explain component life cycles, memoization boundaries, and avoiding unnecessary re-rendering in high-frequency state updates.
+
+Would you like to run a mock design session for a high-performance web dashboard or complex client-side state machine?`;
+  }
+
+  // 3. Backend, Server, Node, Express, Python, Go, Rust, Java, APIs, Microservices
+  if (q.includes("backend") || q.includes("server") || q.includes("node") || q.includes("express") || q.includes("python") || q.includes("django") || q.includes("flask") || q.includes("fastapi") || q.includes("go") || q.includes("golang") || q.includes("rust") || q.includes("java") || q.includes("microservice") || q.includes("api") || q.includes("rest") || q.includes("graphql") || q.includes("grpc")) {
+    return `### Backend Engineering & Scalable Systems
+
+Backend architecture is the reliable engine of any platform, prioritizing concurrency, domain logic isolation, persistent state consistency, and low latency inter-service interfaces.
+
+#### Core Architectural Pillars:
+- **API Interfaces:** Deciding when to leverage resource-centric REST endpoints, flexible GraphQL query aggregators, or low-overhead binary RPC engines like gRPC.
+- **Concurrency & Load Shifting:** Offloading intensive workloads asynchronously using highly resilient message brokers (e.g., RabbitMQ, Apache Kafka, or Redis queues).
+- **Service Partitioning:** Designing microservices with clear bounded contexts, managing consistency, and protecting system borders with circuit breakers.
+- **Caching & Backpressure:** Mitigating database exhaustion through caching nodes (Redis) and controlling ingress load via rate-limit throttles.
+
+#### High-Impact Interview Strategy:
+- **Design APIs First:** Draft target JSON/protobuf payload envelopes explicitly before illustrating downstream servers or relational tables.
+- **Explain Trade-offs Under Scale:** Always weigh asynchronous processing (eventual consistency) against synchronous transactions (immediate consistency).
+
+Would you like to tackle a mock backend interview scenario on designing a real-time messaging pipeline or payment gateway?`;
+  }
+
+  // 4. Databases, Storage, SQL, NoSQL
+  if (q.includes("database") || q.includes("db") || q.includes("sql") || q.includes("nosql") || q.includes("postgresql") || q.includes("postgres") || q.includes("mysql") || q.includes("mongodb") || q.includes("redis")) {
+    return `### Database Systems & Storage Paradigms
+
+Data persistence is the foundation of platform engineering. Selecting, configuring, and scaling storage tiers requires precise trade-off analysis.
+
+#### Core Architectural Pillars:
+- **Relational Stores (SQL):** Relying on absolute ACID transactions, normalized joints, and strict schema compliance (e.g., PostgreSQL). Ideal for ledger transactions and multi-entity relationships.
+- **Document & Wide-Column (NoSQL):** Prioritizing horizontal scalability, flexible data schemas, and rapid query patterns (e.g., MongoDB, Cassandra, DynamoDB).
+- **In-Memory Volatile Caches:** Offloading repetitive high-volume read queries and hosting real-time transient counts securely (e.g., Redis clusters).
+- **Distributed Coordination:** Understanding replication lags, write-ahead logs, partition tolerances, and when to enforce strong vs. eventual consistency.
+
+#### High-Impact Interview Strategy:
+- **Apply the CAP Theorem:** Explicitly state whether you are prioritizing consistency or availability during a network partition scenario and explain why.
+- **Under the Hood Indexes:** Prove your expertise by explaining *how* search indexes optimize lookups (e.g., B-Trees for relational scans vs. LSM Trees for write-heavy pipelines).
+
+Would you like to design a resilient, high-availability data model for a globally distributed platform?`;
+  }
+
+  // 5. Version Control, Git, GitHub
+  if (q.includes("git") || q.includes("github") || q.includes("version control") || q.includes("rebase") || q.includes("merge")) {
+    return `### Git Workflows & Collaboration Mechanics
+
+Git serves as the nervous system of modern development team workflows, enabling rapid feature delivery while maintaining stability on production branches.
+
+#### Core Architectural Pillars:
+- **Branching Methodologies:** Choosing between Trunk-Based Development (small, frequent commits protected by feature flags) and Git Flow (separate structured release branches).
+- **History Preservation:** Choosing between merge commits to preserve historical developer sequences vs. interactive rebasing to maintain a linear, clean master branch history.
+- **Quality Gates:** Implementing pre-commit hook triggers (Husky), automated linter suites, security scanners, and continuous integration builds before PR merges.
+- **Resilience Workflows:** Safely cherry-picking commits, resolving complex multi-file merge conflicts, and utilizing reflogs to recover misplaced states.
+
+#### High-Impact Interview Strategy:
+- **Advocate for Trunk-Based Velocity:** Explain how shorter branch lifespans prevent massive integration bottlenecks and reduce team coordination friction.
+- **Describe Code Review Rigor:** Highlight how you formulate small, single-responsibility pull requests to ease review tasks and accelerate deployment velocity.
+
+Would you like to review git deployment configurations or practice resolving tricky interactive rebasing conflicts?`;
+  }
+
+  // 6. Algorithms, Data Structures, LeetCode, Complexity
+  if (q.includes("algorithm") || q.includes("data structure") || q.includes("leetcode") || q.includes("sorting") || q.includes("tree") || q.includes("graph") || q.includes("hash") || q.includes("complexity") || q.includes("big o")) {
+    return `### Algorithmic Problem Solving & Data Structures
+
+Succeeding in technical problem-solving interviews is about mastering structural patterns, input validation, and cost scalability.
+
+#### Core Architectural Pillars:
+- **Memory Contiguity:** Understanding the trade-offs of linear structures with contiguous layouts (Arrays) vs. dynamic pointer-linked systems (Linked Lists).
+- **Hierarchical Trees & Graphs:** Navigating trees and networks using Breadth-First Search (BFS) and Depth-First Search (DFS) or optimizing lookups via Binary Search Trees.
+- **Advanced Core Map Strategies:** Utilizing Hash Tables for instantaneous constant-time ($O(1)$) search lookups and sliding window models to optimize array sequences.
+- **Complexity Profiling:** Analyzing mathematical growth bounds using Big O notation for both CPU instruction cycles and runtime memory overheads.
+
+#### High-Impact Interview Strategy:
+- **Articulate the Design Curve:** Speak your thoughts out loud. Explain the naive brute-force approach first ($O(N^2)$), pinpoint the efficiency bottlenecks, and then present the optimized hash or pointer layout ($O(N)$).
+- **Address Limits First:** Before implementing, validate array size boundaries, integer overflow cases, and empty input handlers.
+
+Would you like to work through a classic algorithmic pattern like Two-Pointers, Sliding Window, or Dynamic Programming?`;
+  }
+
+  // 7. Testing, Quality Assurance, TDD
+  if (q.includes("testing") || q.includes("test") || q.includes("unit test") || q.includes("jest") || q.includes("cypress") || q.includes("tdd")) {
+    return `### Testing Strategies & Software Quality
+
+High-performing engineering teams treat automated testing not as an afterthought, but as a core component of code quality and regression prevention.
+
+#### Core Architectural Pillars:
+- **The Testing Pyramid:** Balancing high volumes of fast, inexpensive **Unit Tests** with targeted **Integration Tests** (API contracts) and a few critical **End-to-End (E2E) Tests** (critical user checkout flows).
+- **Test-Driven Development (TDD):** Utilizing the Red-Green-Refactor loop to design modular, decoupled interfaces by specifying behaviors before implementation.
+- **Isolation Layers:** Mocking or stubbing network gateways, databases, and third-party APIs while maintaining high test validity.
+- **Deployment Gates:** Integrating test runner execution into deployment pipelines to block broken code before it reaches staging or production.
+
+#### High-Impact Interview Strategy:
+- **Value Over Coverage:** Point out that 100% test coverage is a vanity metric; prioritize thorough testing for high-value business logic and complex state calculations.
+- **Regression Narratives:** Share a story of how a robust integration suite caught a major system regression early, saving user trust and deployment uptime.
+
+Would you like to outline an integration test layout for a secure payment gateway or state-management utility?`;
+  }
+
+  // 8. Security, Auth, Cryptography
+  if (q.includes("security") || q.includes("auth") || q.includes("oauth") || q.includes("jwt") || q.includes("encryption") || q.includes("cryptography")) {
+    return `### Application Security, Auth & Cryptography
+
+Securing systems is a non-negotiable requirement. Protecting user credentials and maintaining transactional data integrity requires audited, standardized structures.
+
+#### Core Architectural Pillars:
+- **Identity Topologies:** Deciding between Server-side Stateful Sessions (session tables) vs. Client-side Stateless Tokens (JSON Web Tokens with cryptographic signatures).
+- **Delegated Authorization:** Implementing OAuth 2.0 and OpenID Connect flows to manage secure third-party resource authorizations safely.
+- **Data Protection Envelopes:** Enforcing transport layer security (HTTPS/TLS) combined with cryptographic data encryption at rest (AES-256) and adaptive password hashing (e.g., bcrypt or Argon2).
+- **Surface Hardening:** Defending endpoints against cross-site scripting (XSS), SQL Injection, and cross-site request forgery (CSRF) via security headers and strict CORS configurations.
+
+#### High-Impact Interview Strategy:
+- **Never Roll Your Own Cryptography:** Emphasize utilizing industry-tested, audited frameworks and packages instead of constructing proprietary security solutions.
+- **Principle of Least Privilege:** Talk about constraining internal services, database connections, and API scopes to the bare minimum permission requirements.
+
+Would you like to map out a secure JWT refresh-token workflow or analyze an OAuth authorization-code exchange sequence?`;
+  }
+
+  // 9. STAR Behavioral Method, Soft Skills, General Job Prep
+  if (q.includes("star") || q.includes("behavioral") || q.includes("hr") || q.includes("interview") || q.includes("resume") || q.includes("cv") || q.includes("ats") || q.includes("portfolio")) {
+    return `### STAR Behavioral & ATS Portfolio Method
+
+To succeed at top-tier companies, your professional narrative and resume must stand out with metric-driven engineering impacts and highly structured communication.
+
+#### The STAR Structure:
+- **Situation:** Set the stage. Highlight a concrete technical bottleneck, team misalignment, or challenging product timeline in 1-2 concise sentences.
+- **Task:** Clarify the core challenge and define the explicit metrics you were directly responsible for resolving.
+- **Action:** Describe *your* personal technical contributions. Focus on key decisions, tool designs, and leadership strategies using strong action verbs.
+- **Result:** Deliver the payoff with quantifiable metrics (e.g., "reduced compute costs by 22%", "accelerated deploy cycle throughput by 15 mins").
+
+#### ATS Optimization:
+- **Inject Technology Nouns:** Ensure ATS parsers can match literal technology names (e.g., "TypeScript", "PostgreSQL", "Docker") directly.
+- **Metrics-First Impact:** Refactor passive descriptions into active metrics (e.g., "Led modern migration of the legacy API, saving developers 10+ hours weekly").
+
+Would you like to practice drafting a STAR story or review a specific section of your resume for ATS optimization?`;
+  }
+
+  // 10. General Technical Topic Parser (Acts exactly like ChatGPT's general breakdown)
+  const subjectName = extractSubject(query);
+  if (subjectName && subjectName.length > 1) {
+    return `### Deep Dive: ${subjectName}
+
+As your Senior Career Mentor, here is an executive-level breakdown of **${subjectName}** and how to speak about it in high-stakes interviews:
+
+#### 1. The Core Concept
+**${subjectName}** is a critical building block in modern software engineering. When describing it to senior panels, define it as the architectural bridge between theoretical design patterns and high-performance production ecosystems.
+
+#### 2. Key Engineering Pillars
+- **State & Scalability:** How **${subjectName}** manages computational bottlenecks, memory space bounds, or scaling requirements under heavy usage.
+- **Integration & Design:** The standard APIs, interface patterns, and operational protocols associated with its integration.
+- **System Trade-offs:** The performance implications (e.g., speed vs. memory cost, immediate vs. eventual consistency) of choosing **${subjectName}**.
+
+#### 3. High-Impact Interview Blueprint
+- **Connect to Real-World Scenarios:** Don't just give a textbook definition. Frame your answer as: *"In my previous project, we adopted **${subjectName}** to solve a critical data latency block, which resulted in a 35% improvement in load times."*
+- **Acknowledge Trade-offs:** Speak like a lead by acknowledging when *not* to use it, emphasizing that engineering is the art of balancing constraints.
+
+Would you like to run a mock interview scenario focusing on **${subjectName}**, or practice detailing a real-world project where you deployed it?`;
+  }
+
+  // Default welcome response
+  return `### Hello! I am MS, your career mentor.
+
+I am configured to act as your personalized system architect and narrative talent coach.
+
+How can I help you accelerate your interview readiness today?
+
+- **"STAR behavioral examples"**: How to structure soft-skill conflict questions.
+- **"Stripe System Design framework"**: Best practices for scalable APIs.
+- **"Resume keyword tips"**: Optimizing your CV for recruiter pipelines.
+- **"Microservices trade-offs"**: Assessing state, storage, and synchronization.
+
+Specify any technology, framework, or interview topic (e.g., **"what is devops"**, **"React hooks"**, or **"how does database index work"**), and let's craft your high-impact technical portfolio.`;
+}
+
+export function getQuestionBankPool(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = ""): string[] {
+  const domain = (categoryOrDomain || "Technical").toLowerCase();
+  const searchStr = `${domain} ${role} ${customTopic} ${company}`.toLowerCase();
+  
+  let pool: string[] = [];
+  
+  // Decide which key to match, prioritizing the explicit domain/category selection
+  let keyToMatch = "";
+  
+  // Direct domain checks (strict selection matching)
+  if (domain.includes("java")) keyToMatch = "java";
+  else if (domain.includes("python")) keyToMatch = "python";
+  else if (domain.includes("aws") || domain.includes("amazon")) keyToMatch = "aws";
+  else if (domain.includes("kubernetes") || domain.includes("k8s")) keyToMatch = "kubernetes";
+  else if (domain.includes("terraform")) keyToMatch = "terraform";
+  else if (domain.includes("docker") || domain.includes("container")) keyToMatch = "docker";
+  else if (domain.includes("linux")) keyToMatch = "linux";
+  else if (domain.includes("jenkins")) keyToMatch = "jenkins";
+  else if (domain.includes("git") || domain.includes("github")) keyToMatch = "git";
+  else if (domain.includes("networking") || domain.includes("dns") || domain.includes("http")) keyToMatch = "networking";
+  else if (domain.includes("security") || domain.includes("iam") || domain.includes("encryption")) keyToMatch = "security";
+  else if (domain.includes("devops") || domain.includes("pipeline")) keyToMatch = "devops";
+  else if (domain.includes("gcp") || domain.includes("google cloud")) keyToMatch = "gcp";
+  else if (domain.includes("azure") || domain.includes("microsoft azure") || domain.includes("azzure")) keyToMatch = "azure";
+  else if (domain.includes("cloud computing")) keyToMatch = "cloud computing";
+  else if (domain.includes("ai") || domain.includes("ml") || domain.includes("machine learning") || domain.includes("deep learning")) keyToMatch = "ai";
+  else if (domain.includes("aptitude") || domain.includes("puzzle") || domain.includes("math")) keyToMatch = "aptitude";
+  else if (domain.includes("hr") || domain.includes("behavioral") || domain.includes("soft skills") || domain.includes("star")) keyToMatch = "hr";
+  else if (domain.includes("system design") || domain.includes("architecture")) keyToMatch = "system design";
+
+  // If no strict match on domain, search the broader context (which includes role, custom topic, company)
+  if (!keyToMatch) {
+    if (searchStr.includes("java")) keyToMatch = "java";
+    else if (searchStr.includes("python")) keyToMatch = "python";
+    else if (searchStr.includes("aws") || searchStr.includes("amazon")) keyToMatch = "aws";
+    else if (searchStr.includes("kubernetes") || searchStr.includes("k8s")) keyToMatch = "kubernetes";
+    else if (searchStr.includes("terraform")) keyToMatch = "terraform";
+    else if (searchStr.includes("docker") || searchStr.includes("container")) keyToMatch = "docker";
+    else if (searchStr.includes("linux")) keyToMatch = "linux";
+    else if (searchStr.includes("jenkins")) keyToMatch = "jenkins";
+    else if (searchStr.includes("git") || searchStr.includes("github")) keyToMatch = "git";
+    else if (searchStr.includes("networking") || searchStr.includes("dns") || searchStr.includes("http")) keyToMatch = "networking";
+    else if (searchStr.includes("security") || searchStr.includes("iam") || searchStr.includes("encryption")) keyToMatch = "security";
+    else if (searchStr.includes("devops") || searchStr.includes("pipeline")) keyToMatch = "devops";
+    else if (searchStr.includes("gcp") || searchStr.includes("google cloud")) keyToMatch = "gcp";
+    else if (searchStr.includes("azure") || searchStr.includes("microsoft azure") || searchStr.includes("azzure")) keyToMatch = "azure";
+    else if (searchStr.includes("cloud computing")) keyToMatch = "cloud computing";
+    else if (searchStr.includes("ai") || searchStr.includes("ml") || searchStr.includes("machine learning") || searchStr.includes("deep learning")) keyToMatch = "ai";
+    else if (searchStr.includes("aptitude") || searchStr.includes("puzzle") || searchStr.includes("math")) keyToMatch = "aptitude";
+    else if (searchStr.includes("hr") || searchStr.includes("behavioral") || searchStr.includes("soft skills") || searchStr.includes("star")) keyToMatch = "hr";
+    else if (searchStr.includes("system design") || searchStr.includes("architecture")) keyToMatch = "system design";
+  }
+
+  if (keyToMatch === "java") {
+    pool = [
+      `What are the core pillars of OOP (Object-Oriented Programming) in Java, and how does encapsulation improve maintainability?`,
+      `Explain the differences between List, Set, and Map in the Java Collections Framework. When would you choose a HashMap over a TreeMap?`,
+      `How do volatile variables and synchronized blocks coordinate multithreading memory visibility in Java?`,
+      `Explain Java's modern Exception Handling. What is the difference between checked and unchecked exceptions?`,
+      `What is JDBC and how does connection pooling optimize database read/write latency in Java applications?`,
+      `How does Spring Boot simplify dependency injection and configuration for enterprise Java services?`,
+      `Explain the components of the JVM (Java Virtual Machine) and how the Garbage Collector recovers unused memory.`,
+      `How is memory allocated in Java's Heap vs. Stack? How do you prevent OutOfMemoryError?`,
+      `What are the major Java 8 features? Explain functional interfaces, lambda expressions, and the Streams API.`,
+      `Describe how the Singleton or Factory Design Pattern is typically implemented and utilized in Java projects.`
+    ];
+  } else if (keyToMatch === "python") {
+    pool = [
+      `Explain the concept of OOP (Object-Oriented Programming) in Python, including inheritance and polymorphism.`,
+      `What are decorators in Python, and how do you write a custom decorator to measure function execution time?`,
+      `How do Python generators work, and why are they highly memory-efficient compared to normal list returns?`,
+      `Write a list comprehension in Python to filter and square even numbers from a collection, and explain its performance advantages.`,
+      `How do you perform vector operations and matrix multiplications using NumPy array structures?`,
+      `What are Pandas DataFrames, and how do you handle missing values or perform groupings on a dataset?`,
+      `How do you design a simple REST API endpoint using the Flask framework in Python?`,
+      `Explain the core architecture of Django, specifically focusing on the MVT (Model-View-Template) pattern.`,
+      `How do you implement robust exception handling in Python using try-except-finally blocks, and what are custom exceptions?`,
+      `What is the difference between deep copy and shallow copy in Python, and how does python manage references?`
+    ];
+  } else if (keyToMatch === "aws") {
+    pool = [
+      `How does Amazon EC2 provide resizable compute capacity, and what are the main differences between On-Demand and Spot instances?`,
+      `What is Amazon S3, and how do you configure bucket policies, versioning, and lifecycle rules for storage optimization?`,
+      `How do you securely configure a VPC with public and private subnets, NAT gateways, and internet gateways on AWS?`,
+      `Explain IAM roles, users, and policies. How do you apply the principle of least privilege in AWS?`,
+      `What are the advantages of using Amazon RDS (Relational Database Service) with multi-AZ replication for automated failover?`,
+      `How does AWS Route 53 manage global DNS resolution and failover routing policies?`,
+      `Explain the role of Application Load Balancers (ELB) in distributing incoming application traffic across target groups.`,
+      `How does AWS Auto Scaling automatically adjust EC2 capacity based on dynamic demand metrics?`,
+      `What is serverless computing on AWS? Explain how AWS Lambda operates and scales based on incoming events.`,
+      `How do you monitor infrastructure metrics and set up custom alarms using Amazon CloudWatch?`
+    ];
+  } else if (keyToMatch === "kubernetes") {
+    pool = [
+      `What is the Kubernetes architecture? Describe the role of the Control Plane vs. Node components.`,
+      `Explain the difference between a Pod, a Deployment, and a ReplicaSet in Kubernetes.`,
+      `How does Kubernetes Service Discovery work? Compare ClusterIP, NodePort, and LoadBalancer service types.`,
+      `What are Kubernetes ConfigMaps and Secrets? How do you securely mount them as environment variables inside a Pod?`,
+      `Explain the concept of Kubernetes liveness and readiness probes, and how they contribute to self-healing.`,
+      `What is a DaemonSet in Kubernetes, and when would you use it instead of a standard Deployment?`,
+      `Explain how HPA (Horizontal Pod Autoscaler) scales pods based on CPU or custom Prometheus metrics.`,
+      `What is the purpose of Kubernetes Ingress, and how does it differ from a standard LoadBalancer Service?`
+    ];
+  } else if (keyToMatch === "terraform") {
+    pool = [
+      `What is Infrastructure as Code (IaC), and what advantages does Terraform offer over manual cloud configuration?`,
+      `Explain the purpose of the Terraform State file (.tfstate), and why it is critical to use remote state locking in production.`,
+      `What is the difference between terraform plan, terraform apply, and terraform destroy commands?`,
+      `How do Terraform modules work, and how do they promote code reusability and standardization across environments?`,
+      `Explain Terraform variables, local values, and output values, and how they parameterize infrastructure templates.`,
+      `What is a Terraform provider, and how does Terraform interact with external cloud APIs?`,
+      `What is the purpose of "terraform import", and how do you bring existing cloud infrastructure under Terraform management?`,
+      `Explain state drifting in Terraform, and how the tool reconciles differences between state and actual cloud environments.`
+    ];
+  } else if (keyToMatch === "docker") {
+    pool = [
+      `Explain the differences between a Docker Image, a Docker Container, and a Dockerfile.`,
+      `How do Docker volumes work, and why are they necessary for persistent database storage in containers?`,
+      `What is a multi-stage Docker build, and how does it help reduce final production container image sizes?`,
+      `What is the difference between COPY and ADD instructions in a Dockerfile, and when should you use each?`,
+      `How do Docker container networks function? Describe the differences between Bridge, Host, and Overlay networks.`,
+      `What is the purpose of Docker Compose, and how does it help define multi-container local applications?`,
+      `How does Docker caching work during image build, and how do you optimize your Dockerfile to maximize cache hits?`,
+      `Explain how you can limit CPU and Memory resources for a running Docker container.`
+    ];
+  } else if (keyToMatch === "linux") {
+    pool = [
+      `What is the Linux file system hierarchy, and what is the purpose of directories like /etc, /var, and /bin?`,
+      `Explain the difference between soft links (symbolic links) and hard links in Linux. How does deleting the source affect them?`,
+      `How do you change file permissions using chmod? Explain the meaning of chmod 755 and chmod 644.`,
+      `What are the commands to monitor system resources (CPU, Memory, Disk, I/O) in real-time on Linux?`,
+      `Explain how the Linux process states work (Running, Sleeping, Stopped, Zombie) and how to manage them with kill.`,
+      `What is an Inode in Linux, and what happens when a system runs out of Inodes but still has free disk space?`,
+      `Explain the difference between a hard reboot and soft reboot, and what happens during the Linux system boot process.`,
+      `How do you view and search through system log files using commands like grep, tail, and journalctl in Linux?`
+    ];
+  } else if (keyToMatch === "jenkins") {
+    pool = [
+      `What is Jenkins, and how does it automate the CI/CD pipeline from code commit to production deployment?`,
+      `Explain the difference between Declarative Pipelines and Scripted Pipelines in Jenkins.`,
+      `What are Jenkins agents (slaves), and how do they distribute build workloads across multiple worker nodes?`,
+      `How do you securely manage sensitive credentials, such as API keys and SSH keys, in Jenkins pipelines?`,
+      `What is a Jenkinsfile, and what are the benefits of storing your build pipeline as code in your Git repository?`,
+      `How do you trigger a Jenkins build automatically using Git Webhooks upon a new commit?`,
+      `Explain the purpose of Jenkins post-build actions and how notifications (Slack, Email) are handled.`,
+      `What is a parameterized build in Jenkins, and when would you configure one?`
+    ];
+  } else if (keyToMatch === "git") {
+    pool = [
+      `Explain the differences between git merge and git rebase. When would you prefer one over the other?`,
+      `What is git stash, and how does it help you save temporary local changes without creating a commit?`,
+      `Explain the difference between git fetch and git pull. How does git pull combine two distinct actions?`,
+      `What are Git Hooks, and how can you use them to run automated linters or tests before a commit is allowed?`,
+      `Describe a standard pull request (PR) workflow on GitHub, including peer code reviews and status checks.`,
+      `What is git cherry-pick, and when would you use it to move commits between branches?`,
+      `Explain how you resolve git merge conflicts step-by-step.`,
+      `What is git reflog, and how is it used to recover lost commits or deleted branches?`
+    ];
+  } else if (keyToMatch === "networking") {
+    pool = [
+      `Explain the difference between TCP and UDP protocols, and name common use cases for each.`,
+      `What is the OSI Model? Briefly describe the functions of the Physical, Network, Transport, and Application layers.`,
+      `How does DNS (Domain Name System) resolve a domain name like google.com into an IP address?`,
+      `What is CIDR (Classless Inter-Domain Routing), and how do IP addresses and subnet masks define network boundaries?`,
+      `Explain the differences between HTTP and HTTPS. How does SSL/TLS establish a secure connection?`,
+      `What is the difference between a private IP address and a public IP address? Explain NAT (Network Address Translation).`,
+      `What is a subnet mask, and how do you calculate how many hosts can fit in a /24 subnet?`,
+      `Explain how Traceroute (tracert) works to map the network hops between your device and a target host.`
+    ];
+  } else if (keyToMatch === "security") {
+    pool = [
+      `What is the principle of least privilege, and how is it applied to cloud IAM policies and user roles?`,
+      `Explain the concept of Data at Rest Encryption vs. Data in Transit Encryption in cloud environments.`,
+      `What are Security Groups and Network Access Control Lists (NACLs)? How do they differ in statefulness and subnet pairing?`,
+      `What is the AWS Shared Responsibility Model? What security configurations are the responsibility of the customer?`,
+      `What is a DDoS attack, and what cloud-native mitigation techniques or services (like AWS Shield or WAF) protect against it?`,
+      `Explain multi-factor authentication (MFA) and why it is a critical baseline control for cloud root accounts.`,
+      `What is penetration testing, and how does vulnerability scanning differ from it in cloud security audits?`,
+      `Explain how SSH key-pair authentication works to secure logins to cloud VMs.`
+    ];
+  } else if (keyToMatch === "devops") {
+    pool = [
+      `What is CI/CD, and why is it crucial for continuous automated software delivery pipelines?`,
+      `Explain how Jenkins compiles, tests, and deploys applications securely using scripted or declarative Pipelines.`,
+      `Explain the difference between a Docker image and a running Docker container, and how layers optimize caching.`,
+      `What is Kubernetes? Explain the roles of Pods, Deployments, and Services in orchestrating containerized apps.`,
+      `What is Terraform, and how does it manage infrastructure state locking to prevent deployment conflicts?`,
+      `Explain the Git branching strategies (e.g. GitFlow or trunk-based development) used in professional engineering teams.`,
+      `What are some essential Linux commands for diagnosing high CPU usage, memory bottlenecks, or open file descriptors?`,
+      `Why is proactive infrastructure monitoring critical, and what are the roles of tools like Prometheus and Grafana?`,
+      `Explain how Ansible provides agentless configuration management and automated playbook execution.`,
+      `What are the core benefits of Infrastructure as Code (IaC) over manual environment configuration?`
+    ];
+  } else if (keyToMatch === "gcp") {
+    pool = [
+      "Explain Google Cloud's resource hierarchy (Organization, Folders, Projects, Resources) and how IAM policies are inherited.",
+      "What are the key differences between Google Compute Engine (GCE) and Google Kubernetes Engine (GKE) in terms of management and scaling?",
+      "How does GCP's global VPC network differ from AWS or Azure VPCs? Explain the concept of Shared VPC.",
+      "What is Cloud Spanner, and how does it achieve global consistency while maintaining relational ACID properties at scale?",
+      "Explain GCP's serverless options: Cloud Run vs. Cloud Functions. When would you choose one over the other?",
+      "What is Google Cloud Storage (GCS), and what are its storage classes (Standard, Nearline, Coldline, Archive)?",
+      "How does GCP Cloud Identity and Access Management (IAM) utilize Roles (Primitive, Predefined, Custom) to secure projects?",
+      "Explain Google Cloud's operations suite (formerly Stackdriver). How do Cloud Logging and Cloud Monitoring help track service health?"
+    ];
+  } else if (keyToMatch === "azure") {
+    pool = [
+      "Explain the Azure Resource Manager (ARM) hierarchy (Management Groups, Subscriptions, Resource Groups, Resources).",
+      "What are Azure App Services, and how do they differ from Azure Virtual Machines (VMs) in deployment flexibility?",
+      "How does Azure Active Directory (Azure AD / Microsoft Entra ID) handle authentication, RBAC, and conditional access policies?",
+      "Explain the difference between Azure Blob Storage, Azure Files, and Azure Disk Storage, and common use cases for each.",
+      "What is Azure Kubernetes Service (AKS), and how does it manage container orchestration and integration with Azure Virtual Networks?",
+      "Explain Azure's serverless offerings: Azure Functions vs. Azure Logic Apps.",
+      "What is Azure Cosmos DB, and how does it manage multi-model API support and global distribution with configurable consistency levels?",
+      "How do Azure Monitor and Application Insights gather telemetry and track performance across cloud resources?"
+    ];
+  } else if (keyToMatch === "cloud computing") {
+    pool = [
+      `What are the key architectural differences and use cases for IaaS, PaaS, and SaaS cloud delivery models?`,
+      `Explain the role of virtualization in cloud computing and how hypervisors enable multiple operating systems on physical hardware.`,
+      `Compare Public Cloud, Private Cloud, and Hybrid Cloud architectures in terms of cost, security, and control.`,
+      `What are standard cloud security best practices for protecting data at rest and in transit?`,
+      `How does a multi-region cloud architecture provide high availability and geographical disaster recovery?`,
+      `Explain the Shared Responsibility Model in cloud environments. Who is responsible for patching guest operating systems?`,
+      `What is horizontal scaling vs vertical scaling in a cloud environment, and when is each appropriate?`,
+      `How do Content Delivery Networks (CDNs) leverage edge caching to improve global latency?`,
+      `What is cloud tenant isolation, and how do public cloud providers ensure secure multi-tenancy?`
+    ];
+  } else if (keyToMatch === "ai") {
+    pool = [
+      `What is the difference between supervised, unsupervised, and reinforcement learning in Machine Learning?`,
+      `Explain Deep Learning. How do multi-layer artificial neural networks learn complex hierarchical representations?`,
+      `What is a Convolutional Neural Network (CNN), and how do convolutional layers extract local spatial features from images?`,
+      `How do Recurrent Neural Networks (RNN) process sequential data, and how do LSTMs mitigate vanishing gradients?`,
+      `What is Natural Language Processing (NLP), and what are the common tokenization and embedding steps?`,
+      `Explain Large Language Models (LLMs) and the foundational self-attention mechanism in the Transformer architecture.`,
+      `What is Gradient Descent, and how do learning rates determine the convergence speed of model optimization?`,
+      `Explain overfitting. How do you prevent a model from overfitting using regularization, dropout, or early stopping?`,
+      `What is Feature Engineering, and why is selecting the correct input representations crucial for model success?`,
+      `How do you evaluate Machine Learning models using metrics like accuracy, precision, recall, and F1-score?`
+    ];
+  } else if (keyToMatch === "aptitude") {
+    pool = [
+      `If a laptop is bought for $800 and sold for $1000, what is the profit percentage?\nA) 15%\nB) 20%\nC) 25%\nD) 30%`,
+      `A clock shows exactly 3:15. What is the angle in degrees between the hour hand and the minute hand?\nA) 0 degrees\nB) 7.5 degrees\nC) 30 degrees\nD) 90 degrees`,
+      `If 5 workers can build a wall in 12 days, how many days will it take 6 workers to build the same wall, assuming the same efficiency?\nA) 8 days\nB) 10 days\nC) 12 days\nD) 15 days`,
+      `A train travels at a speed of 60 mph. How far will it travel in 2.5 hours?\nA) 120 miles\nB) 150 miles\nC) 180 miles\nD) 200 miles`,
+      `What is the next number in the logical series: 2, 6, 12, 20, 30, ...?\nA) 36\nB) 40\nC) 42\nD) 48`,
+      `Pointing to a photograph, Amit said, "Her father is the only son of my grandfather." Whose photograph was Amit looking at?\nA) His sister's\nB) His daughter's\nC) His mother's\nD) His niece's`,
+      `Find the odd one out from the following list:\nA) Apple\nB) Banana\nC) Carrot\nD) Grape`,
+      `In a certain code language, "APPLE" is written as "EPPLA". How is "GRAPE" written in that language?\nA) ERAPG\nB) EPAQG\nC) ERPGA\nD) GEPAR`
+    ];
+  } else if (keyToMatch === "hr") {
+    pool = [
+      `Tell me about a challenge you faced during a project. What actions did you take to resolve it, and what was the outcome?`,
+      `Describe a conflict in your team or group project. How did you handle the situation, and what did you learn?`,
+      `Explain a time when you showed leadership. How did you guide others toward a successful project delivery?`,
+      `Describe a project failure you experienced. What did you learn from it, and how did you apply that learning later?`,
+      `Tell me about a time when you had to adapt quickly to changing requirements. How did you manage your tasks?`
+    ];
+  } else if (keyToMatch === "system design") {
+    pool = [
+      `What is system scalability, and what are the trade-offs between horizontal scaling and vertical scaling?`,
+      `Explain how load balancers distribute traffic across a pool of servers, and describe round-robin routing.`,
+      `How do relational databases differ from NoSQL databases in terms of schema flexibility and scalability?`,
+      `What is database caching, and how do in-memory caches like Redis or Memcached speed up query performance?`,
+      `Explain the CAP Theorem and how databases choose between Consistency, Availability, and Partition Tolerance.`,
+      `What are microservices, and what are the benefits of decoupling applications into independent services?`,
+      `How do asynchronous message queues like RabbitMQ or Kafka handle high-throughput communication between services?`,
+      `Explain the role of an API Gateway in modern microservice architectures, including authentication and rate limiting.`,
+      `Why is system monitoring and alerting critical, and how do dashboards help developers identify bottlenecks?`,
+      `How do you achieve high availability and eliminate single points of failure in cloud-native applications?`
+    ];
+  } else if (customTopic) {
+    pool = [
+      `Explain the core concepts and principles of ${customTopic} that every software developer should know.`,
+      `What are the common industry best practices and standards when implementing solutions using ${customTopic}?`,
+      `Describe a typical challenge or error encountered when working with ${customTopic}, and how to debug it.`,
+      `How does ${customTopic} integrate with existing modern software architectures and cloud services?`,
+      `Compare ${customTopic} with its main alternatives. What are the key trade-offs in performance and ease of use?`
+    ];
+  } else {
+    pool = [
+      `Explain the core conceptual differences between SQL and NoSQL storage paradigms, and when to use them.`,
+      `How do you secure server-side REST API endpoints from potential security threats and unauthorized access?`,
+      `Walk me through how you would optimize a slow-performing database query or bottlenecked system pathway.`,
+      `What are the trade-offs of using Microservices vs. Monolithic architecture, especially regarding deployment complexity?`,
+      `Describe the lifecycle of an asynchronous execution queue, and how to deal with failures and retries.`
+    ];
+  }
+
+  return pool;
+}
+
+export function getSimulatedQuestions(categoryOrDomain: string, role: string, difficulty: string, company: string = "Standard", customTopic: string = "", numQuestions: number = 5) {
+  const domain = (categoryOrDomain || "Technical").toLowerCase();
+  const searchStr = `${domain} ${role} ${customTopic} ${company}`.toLowerCase();
+  
+  let pool = getQuestionBankPool(categoryOrDomain, role, difficulty, company, customTopic);
+  
+  // Shuffle pool to ensure variety and uniqueness
+  pool = [...pool].sort(() => Math.random() - 0.5);
+  
+  // Take the required number of questions, up to pool size
+  const selectedQuestions = pool.slice(0, numQuestions);
+  
+  // If pool didn't have enough, fill with domain-safe distinct questions
+  const defaultAptitude = [
+    `Solve this problem: If 3 books cost $15, how much do 6 books cost?\nA) $20\nB) $25\nC) $30\nD) $35`,
+    `A train running at the speed of 60 km/hr crosses a pole in 9 seconds. What is the length of the train?\nA) 120 metres\nB) 150 metres\nC) 324 metres\nD) 180 metres`,
+    `Find the odd one out: 3, 5, 11, 14, 17, 21\nA) 14\nB) 17\nC) 21\nD) 11`,
+    `A sum of money at simple interest amounts to $815 in 3 years and to $854 in 4 years. The sum is:\nA) $650\nB) $690\nC) $698\nD) $700`,
+    `If a person walks at 14 km/hr instead of 10 km/hr, he would have walked 20 km more. The actual distance travelled by him is:\nA) 50 km\nB) 56 km\nC) 70 km\nD) 80 km`
+  ];
+
+  const defaultHR = [
+    `Tell me about a situation where you had to work with a teammate whose working style was different from yours.`,
+    `Describe a time when you faced a major obstacle at work and how you overcame it.`,
+    `Why do you want to join our team, and how does your career vision align with this role?`,
+    `Can you describe a time when you had to explain a complex technical concept to a non-technical stakeholder?`,
+    `Tell me about a time when you made a mistake on a project. How did you handle it and what did you learn?`
+  ];
+
+  const defaultTechnical = [
+    `As a ${role} working at ${company}, how do you ensure code quality, performance, and robustness for a ${difficulty} level feature?`,
+    `What are your preferred strategies for debugging complex asynchronous failures or memory leaks in a production environment?`,
+    `Describe a system architecture design pattern you frequently use when building scalable solutions as a ${role}.`,
+    `How do you approach writing clean, maintainable, and well-tested code for enterprise projects?`,
+    `Can you walk through your process for performing comprehensive code reviews within your engineering team?`
+  ];
+
+  let fallbackIdx = 0;
+  while (selectedQuestions.length < numQuestions) {
+    let nextQ = "";
+    if (searchStr.includes("aptitude")) {
+      nextQ = defaultAptitude[fallbackIdx % defaultAptitude.length];
+    } else if (searchStr.includes("hr") || searchStr.includes("behavioral")) {
+      nextQ = defaultHR[fallbackIdx % defaultHR.length];
+    } else {
+      nextQ = defaultTechnical[fallbackIdx % defaultTechnical.length];
+    }
+
+    if (!selectedQuestions.includes(nextQ)) {
+      selectedQuestions.push(nextQ);
+    } else {
+      selectedQuestions.push(`${nextQ} (Vary: Option ${Math.floor(fallbackIdx / 5) + 1})`);
+    }
+    fallbackIdx++;
+  }
+  
+  return selectedQuestions.map((text, index) => ({
+    id: index + 1,
+    text: text
+  }));
+}

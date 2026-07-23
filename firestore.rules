@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Catch-all default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email'])
+      );
+      allow delete: if false;
+    }
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid
+          && data.email is string
+          && data.email.size() <= 200
+          && data.fullName is string
+          && data.fullName.size() <= 200
+          && data.createdAt is string;
+    }
+
+    // Interviews Collection
+    match /interviews/{interviewId} {
+      allow get: if isSignedIn() && existing().uid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid && isValidInterview(request.resource.data);
+      allow delete: if isSignedIn() && existing().uid == request.auth.uid;
+      allow update: if false; // Interviews are immutable once submitted
+    }
+
+    // Questions Collection
+    match /questions/{questionId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid && isValidQuestion(request.resource.data);
+      allow delete: if false;
+      allow update: if false; // Questions are immutable once created
+    }
+
+    function isValidQuestion(data) {
+      return data.userId == request.auth.uid
+          && data.text is string
+          && data.text.size() <= 2000
+          && data.domain is string
+          && data.domain.size() <= 200
+          && data.difficulty is string
+          && data.difficulty.size() <= 100
+          && data.createdAt is string;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidInterview(data) {
+      return data.uid == request.auth.uid
+          && data.category is string
+          && data.category.size() <= 200
+          && data.role is string
+          && data.role.size() <= 200
+          && data.difficulty is string
+          && data.difficulty.size() <= 100
+          && data.company is string
+          && data.company.size() <= 100
+          && data.score is number
+          && data.score >= 0 && data.score <= 100
+          && data.feedback is string
+          && data.feedback.size() <= 100000
+          && data.createdAt is string
+          && data.questions is list
+          && data.questions.size() <= 50
+          && data.metrics is map
+          && data.metrics.communication is number
+          && data.metrics.technical is number
+          && data.metrics.confidence is number
+          && data.metrics.problemSolving is number
+          && data.metrics.clarity is number
+          && data.keys().hasAll(['category', 'role', 'difficulty', 'company', 'score', 'metrics', 'feedback', 'questions', 'createdAt', 'uid']);
+    }
+  }
+}

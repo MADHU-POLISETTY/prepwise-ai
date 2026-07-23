@@ -1,4 +1,3 @@
-[README.md](https://github.com/user-attachments/files/30266625/README.md)
 # PrepWise AI – AI-Powered Cloud & DevOps Interview Platform
 
 [![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
@@ -174,6 +173,9 @@ NODE_ENV=development
 
 ---
 
+## 📄 Resume Description (For Your CV)
+
+Add this description to your professional profile or final-year portfolio:
 
 > **PrepWise AI – Full-Stack Lead Developer (Academic Capstone Project)**
 > - Engineered an AI-driven educational technology platform using **React 18**, **TypeScript**, **Express**, and **Vite** designed to test and prepare engineers for Cloud & DevOps roles.

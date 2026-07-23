@@ -1,0 +1,132 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile representation in the DB",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique user identifier from Auth"
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "The user's candidate full name"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp for when the user account was initialized"
+        }
+      },
+      "required": ["uid", "email", "fullName", "createdAt"]
+    },
+    "Interview": {
+      "title": "Interview",
+      "description": "An interview practice session record, containing dynamic questions, user answers, detailed AI score metrics, and structured textual feedback.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "The authentication UID of the user who completed the interview"
+        },
+        "category": {
+          "type": "string",
+          "description": "The context/type of the interview practice session"
+        },
+        "role": {
+          "type": "string",
+          "description": "The targeted job role"
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "The difficulty level"
+        },
+        "company": {
+          "type": "string",
+          "description": "The targeted company focus"
+        },
+        "score": {
+          "type": "integer",
+          "description": "The primary overall weighted performance score out of 100"
+        },
+        "feedback": {
+          "type": "string",
+          "description": "Exhaustive personalized markdown feedback with key strengths and developmental instructions"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp for when the interview was completed"
+        },
+        "questions": {
+          "type": "array",
+          "description": "A list of structured question-and-answer pairs provided during the interview"
+        },
+        "metrics": {
+          "type": "object",
+          "description": "Detailed AI score metrics"
+        }
+      },
+      "required": [
+        "uid",
+        "category",
+        "role",
+        "difficulty",
+        "company",
+        "score",
+        "feedback",
+        "createdAt",
+        "questions",
+        "metrics"
+      ]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "An interview question record generated dynamically for a user to avoid repeats and keep history.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The authentication UID of the user who owns this generated question"
+        },
+        "text": {
+          "type": "string",
+          "description": "The content of the question"
+        },
+        "domain": {
+          "type": "string",
+          "description": "The domain/category of the question"
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "The difficulty level of the question"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO timestamp for when this question was generated"
+        }
+      },
+      "required": ["userId", "text", "domain", "difficulty", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of primary registered platform users"
+    },
+    "/interviews/{interviewId}": {
+      "schema": "Interview",
+      "description": "Unbounded history collection containing all previous evaluated interview runs"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Collection of dynamically generated questions for each user to track history and prevent repeats"
+    }
+  }
+}
